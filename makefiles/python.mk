@@ -87,7 +87,7 @@ check-python: ## 🔍 Check Python code quality
 		for dir in $(PYTHON_DIRS); do \
 			if [ -d "$$dir" ]; then \
 				echo "$(YELLOW)  Processing $$dir...$(RESET)"; \
-				cd $$dir && \
+				(cd $$dir && \
 				echo "$(YELLOW)    Checking format compliance...$(RESET)" && \
 				$(PYTHON) -m $(ISORT) --check-only . && \
 				$(PYTHON) -m $(BLACK) --check . && \
@@ -96,8 +96,7 @@ check-python: ## 🔍 Check Python code quality
 				echo "$(YELLOW)    Running mypy...$(RESET)" && \
 				$(PYTHON) -m $(MYPY) . && \
 				echo "$(YELLOW)    Running pylint...$(RESET)" && \
-				$(PYTHON) -m $(PYLINT) --fail-under=8.0 *.py; \
-				cd - > /dev/null; \
+				$(PYTHON) -m $(PYLINT) --fail-under=8.0 *.py) || exit 1; \
 			else \
 				echo "$(RED)    Directory $$dir does not exist$(RESET)"; \
 			fi; \
@@ -113,8 +112,17 @@ test-python: ## 🧪 Run Python tests
 		for dir in $(PYTHON_DIRS); do \
 			if [ -d "$$dir" ]; then \
 				echo "$(YELLOW)  Testing $$dir...$(RESET)"; \
-				cd $$dir && $(PYTHON) -m pytest tests/ -v; \
-				cd - > /dev/null; \
+				(cd $$dir && \
+				if [ -d "tests" ]; then \
+					echo "$(YELLOW)    Running tests...$(RESET)" && \
+					if [ -f "uv.lock" ]; then \
+						uv run python -m pytest tests/ -v; \
+					else \
+						$(PYTHON) -m pytest tests/ -v; \
+					fi; \
+				else \
+					echo "$(BLUE)    No tests directory found$(RESET)"; \
+				fi) || exit 1; \
 			else \
 				echo "$(RED)    Directory $$dir does not exist$(RESET)"; \
 			fi; \
@@ -131,11 +139,16 @@ build-python: ## 📦 Build Python projects (install dependencies)
 			if [ -d "$$dir" ]; then \
 				echo "$(YELLOW)  Building $$dir...$(RESET)"; \
 				cd $$dir && \
-				if [ -f requirements.txt ]; then \
+				if [ -f uv.lock ]; then \
+					echo "$(YELLOW)    Installing dependencies with uv...$(RESET)"; \
+					uv sync; \
+					echo "$(GREEN)  Dependencies installed with uv: $$dir$(RESET)"; \
+				elif [ -f requirements.txt ]; then \
+					echo "$(YELLOW)    Installing dependencies with pip...$(RESET)"; \
 					$(PYTHON) -m pip install -r requirements.txt; \
-					echo "$(GREEN)  Dependencies installed: $$dir$(RESET)"; \
+					echo "$(GREEN)  Dependencies installed with pip: $$dir$(RESET)"; \
 				else \
-					echo "$(BLUE)  No requirements.txt found in $$dir$(RESET)"; \
+					echo "$(BLUE)  No uv.lock or requirements.txt found in $$dir$(RESET)"; \
 				fi; \
 				cd - > /dev/null; \
 			else \
