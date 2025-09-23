@@ -142,7 +142,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: pip
 
       - name: Install uv
         if: matrix.setup == 'python'
@@ -186,9 +185,14 @@ jobs:
               ;;
             go)
               echo "🔍 Running Go quality checks..."
+              echo "🛠️ Installing Go quality tools..."
+              go install github.com/mgechev/revive@latest
+              echo "✨ Running go fmt..."
               go fmt ./...
+              echo "🔍 Running go vet..."
               go vet ./...
-              golint ./...
+              echo "📋 Running revive (modern replacement for golint)..."
+              revive -config revive.toml ./... || revive ./...
               ;;
             python)
               echo "🛠️ Installing Python quality tools..."
@@ -246,7 +250,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: pip
 
       - name: Install uv
         if: matrix.setup == 'python'
