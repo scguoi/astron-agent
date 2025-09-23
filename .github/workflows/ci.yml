@@ -134,7 +134,7 @@ jobs:
         if: matrix.setup == 'go'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           cache-dependency-path: core/tenant/go.sum
 
       - name: Setup Python
@@ -249,7 +249,7 @@ jobs:
         if: matrix.setup == 'go'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
           cache-dependency-path: core/tenant/go.sum
 
       - name: Setup Python
