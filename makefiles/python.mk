@@ -116,6 +116,8 @@ test-python: ## 🧪 Run Python tests
 				if [ -d "tests" ]; then \
 					echo "$(YELLOW)    Running tests...$(RESET)" && \
 					if [ -f "uv.lock" ]; then \
+						echo "$(YELLOW)      Syncing dependencies with uv...$(RESET)" && \
+						uv sync && \
 						uv run python -m pytest tests/ -v; \
 					else \
 						$(PYTHON) -m pytest tests/ -v; \
