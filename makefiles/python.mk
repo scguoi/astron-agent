@@ -84,10 +84,11 @@ fmt-python: ## ✨ Format Python code
 check-python: ## 🔍 Check Python code quality
 	@if [ -n "$(PYTHON_DIRS)" ]; then \
 		echo "$(YELLOW)Checking Python code quality in: $(PYTHON_DIRS)$(RESET)"; \
+		FAILED_PROJECTS=""; \
 		for dir in $(PYTHON_DIRS); do \
 			if [ -d "$$dir" ]; then \
 				echo "$(YELLOW)  Processing $$dir...$(RESET)"; \
-				(cd $$dir && \
+				if (cd $$dir && \
 				echo "$(YELLOW)    Checking format compliance...$(RESET)" && \
 				$(PYTHON) -m $(ISORT) --check-only . && \
 				$(PYTHON) -m $(BLACK) --check . && \
@@ -96,12 +97,24 @@ check-python: ## 🔍 Check Python code quality
 				echo "$(YELLOW)    Running mypy...$(RESET)" && \
 				$(PYTHON) -m $(MYPY) . && \
 				echo "$(YELLOW)    Running pylint...$(RESET)" && \
-				$(PYTHON) -m $(PYLINT) --fail-under=8.0 *.py) || exit 1; \
+				$(PYTHON) -m $(PYLINT) --fail-under=8.0 *.py); then \
+					echo "$(GREEN)    ✅ $$dir passed all checks$(RESET)"; \
+				else \
+					echo "$(RED)    ❌ $$dir failed quality checks$(RESET)"; \
+					FAILED_PROJECTS="$$FAILED_PROJECTS $$dir"; \
+				fi; \
 			else \
 				echo "$(RED)    Directory $$dir does not exist$(RESET)"; \
+				FAILED_PROJECTS="$$FAILED_PROJECTS $$dir(missing)"; \
 			fi; \
 		done; \
-		echo "$(GREEN)Python code quality checks completed$(RESET)"; \
+		if [ -n "$$FAILED_PROJECTS" ]; then \
+			echo "$(RED)Python code quality checks failed for:$$FAILED_PROJECTS$(RESET)"; \
+			echo "$(YELLOW)Please fix the issues above and run 'make check-python' again$(RESET)"; \
+			exit 1; \
+		else \
+			echo "$(GREEN)All Python projects passed code quality checks$(RESET)"; \
+		fi; \
 	else \
 		echo "$(BLUE)Skipping Python checks (no Python projects configured)$(RESET)"; \
 	fi
