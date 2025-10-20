@@ -1,14 +1,14 @@
-# astronAgent 项目完整部署指南
+# AstronAgent 项目完整部署指南
 
-本指南将帮助您按照正确的顺序启动 astronAgent 项目的所有组件，包括身份认证、知识库和核心服务。
+本指南将帮助您按照正确的顺序启动 AstronAgent 项目的所有组件，包括身份认证、知识库和核心服务。
 
 ## 📋 项目架构概述
 
-astronAgent 项目包含以下三个主要组件：
+AstronAgent 项目包含以下三个主要组件：
 
 1. **Casdoor** - 身份认证和单点登录服务(必要部署组件,提供单点登录功能)
 2. **RagFlow** - 知识库和文档检索服务(非必要部署组件,根据需要部署)
-3. **astronAgent** - 核心业务服务集群(必要部署组件)
+3. **AstronAgent** - 核心业务服务集群(必要部署组件)
 
 ## 🚀 部署步骤
 
@@ -96,7 +96,7 @@ docker compose logs -f ragflow
 
 ### 第三步：集成配置 Casdoor、RagFlow 服务（根据需要配置相关信息）
 
-在启动 astronAgent 服务之前，配置相关的连接信息以集成 Casdoor 和 RagFlow。
+在启动 AstronAgent 服务之前，配置相关的连接信息以集成 Casdoor 和 RagFlow。
 
 ```bash
 # 进入 astronAgent 目录
@@ -180,7 +180,7 @@ vim .env
 ```
 
 
-### 第四步：启动 astronAgent 核心服务（必要部署步骤）
+### 第四步：启动 AstronAgent 核心服务（必要部署步骤）
 
 #### 4.1 配置 讯飞开放平台 相关APP_ID API_KEY等信息
 
@@ -234,7 +234,7 @@ curl -X PUT 'https://chatdoc.xfyun.cn/openapi/v1/dataset/create' \
 XINGHUO_DATASET_ID=
 ```
 
-#### 4.3 启动 astronAgent 服务
+#### 4.3 启动 AstronAgent 服务
 
 启动之前请配置一些必须的环境变量，并确保nginx和minio的端口开放
 
@@ -247,10 +247,10 @@ vim .env
 ```
 
 ```env
-HOST_BASE_ADDRESS=http://localhost (astronAgent服务主机地址)
+HOST_BASE_ADDRESS=http://localhost (AstronAgent服务主机地址)
 ```
 
-启动 astronAgent 服务请运行我们的 [docker-compose.yaml](/docker/astronAgent/docker-compose.yaml) 文件。在运行安装命令之前，请确保您的机器上安装了 Docker 和 Docker Compose。
+启动 AstronAgent 服务请运行我们的 [docker-compose.yaml](/docker/astronAgent/docker-compose.yaml) 文件。在运行安装命令之前，请确保您的机器上安装了 Docker 和 Docker Compose。
 
 ```bash
 # 进入 astronAgent 目录
