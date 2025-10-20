@@ -65,18 +65,23 @@
 
 ## 🚀 快速开始
 
-### 使用 Docker
-
 ```bash
 # 克隆项目
 git clone https://github.com/iflytek/astron-agent.git
 cd astron-agent
 
-# 启动容器栈
+# 启动 Casdoor 身份认证服务
+cd docker/casdoor
 docker-compose up -d
+
+# 启动 AstronAgent 核心服务
+cd ../astronAgent
+docker compose up -d
 ```
 
-- 在浏览器访问 `http://localhost:8080`。
+访问平台：http://localhost/
+
+> 📖 完整的部署说明和配置详情，请查看[部署指南](docs/DEPLOYMENT_GUIDE_zh.md)
 
 ## 📖 使用指南
 

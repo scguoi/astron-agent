@@ -65,18 +65,23 @@ It not only provides full-lifecycle capabilities covering model hosting, applica
 
 ## 🚀 Quick Start
 
-### Using Docker
-
 ```bash
 # Clone the repository
 git clone https://github.com/iflytek/astron-agent.git
 cd astron-agent
 
-# Start the stack
+# Start Casdoor authentication service
+cd docker/casdoor
 docker-compose up -d
+
+# Start AstronAgent core services
+cd ../astronAgent
+docker compose up -d
 ```
 
-- Visit `http://localhost:8080` in your browser.
+Access the platform at http://localhost/
+
+> 📖 For complete deployment instructions and configuration details, see [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 
 ## 📖 Usage Guide
 
