@@ -21,7 +21,8 @@ English | [简体中文](README-zh.md)
 - [🔭 What is Astron Agent?](#-What-is-Astron-Agent)
 - [🛠️ Tech Stack](#%EF%B8%8F-tech-stack)
 - [🚀 Quick Start](#-quick-start)
-  - [Using Docker](#using-docker)
+  - [Option 1: Docker Compose](#option-1-docker-compose-recommended-for-quick-start)
+  - [Option 2: Helm](#option-2-helm-for-kubernetes-environments)
 - [📖 Usage Guide](#-usage-guide)
 - [📚 Documentation](#-documentation)
 - [🤝 Contributing](#-contributing)
@@ -65,6 +66,10 @@ It not only provides full-lifecycle capabilities covering model hosting, applica
 
 ## 🚀 Quick Start
 
+We offer two deployment methods to meet different scenarios:
+
+### Option 1: Docker Compose (Recommended for Quick Start)
+
 ```bash
 # Clone the repository
 git clone https://github.com/iflytek/astron-agent.git
@@ -80,6 +85,18 @@ docker compose up -d
 ```
 
 Access the platform at http://localhost/
+
+### Option 2: Helm (For Kubernetes Environments)
+
+> 🚧 **Note**: Helm charts are currently under development. Stay tuned for updates!
+
+```bash
+# Coming soon
+# helm repo add astron-agent https://iflytek.github.io/astron-agent
+# helm install astron-agent astron-agent/astron-agent
+```
+
+---
 
 > 📖 For complete deployment instructions and configuration details, see [Deployment Guide](docs/DEPLOYMENT_GUIDE.md)
 

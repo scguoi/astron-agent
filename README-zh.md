@@ -21,7 +21,8 @@
 - [🔭 星辰 Agent 是什么](#-星辰-agent-是什么)
 - [🛠️ 技术栈](#%EF%B8%8F-技术栈)
 - [🚀 快速开始](#-快速开始)
-  - [使用 Docker](#使用-docker)
+  - [方式一：Docker Compose](#方式一docker-compose推荐快速体验)
+  - [方式二：Helm](#方式二helm适用于-kubernetes-环境)
 - [📖 使用指南](#-使用指南)
 - [📚 文档](#-文档)
 - [🤝 参与贡献](#-参与贡献)
@@ -65,6 +66,10 @@
 
 ## 🚀 快速开始
 
+我们提供两种部署方式，满足不同场景需求:
+
+### 方式一：Docker Compose（推荐快速体验）
+
 ```bash
 # 克隆项目
 git clone https://github.com/iflytek/astron-agent.git
@@ -80,6 +85,18 @@ docker compose up -d
 ```
 
 访问平台：http://localhost/
+
+### 方式二：Helm（适用于 Kubernetes 环境）
+
+> 🚧 **注意**：Helm charts 正在完善中，敬请期待！
+
+```bash
+# 即将推出
+# helm repo add astron-agent https://iflytek.github.io/astron-agent
+# helm install astron-agent astron-agent/astron-agent
+```
+
+---
 
 > 📖 完整的部署说明和配置详情，请查看[部署指南](docs/DEPLOYMENT_GUIDE_zh.md)
 
