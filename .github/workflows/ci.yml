@@ -216,10 +216,10 @@ jobs:
               echo "🔍 Running Python quality checks..."
               echo "1. Running flake8 code style check..."
               python3 -m flake8 --max-line-length 88 --ignore=E203,W503,E501 --max-complexity 10 .
-              echo "2. Running isort import formatting..."
-              python3 -m isort --profile black .
-              echo "3. Running black code formatting..."
-              python3 -m black .
+              echo "2. Checking isort import order..."
+              python3 -m isort --check-only --profile black .
+              echo "3. Checking black code format..."
+              python3 -m black --check .
               echo "4. Running mypy type checking..."
               python3 -m mypy --disallow-untyped-defs --disallow-incomplete-defs --check-untyped-defs --no-implicit-optional --ignore-missing-imports --explicit-package-bases .
               echo "5. Running pylint code analysis..."

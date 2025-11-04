@@ -58,23 +58,6 @@ check-tools-typescript: ## ✅ Check TypeScript development tools availability
 	@echo "  Prettier version: $$(prettier --version)"
 	@echo "  ESLint version: $$(eslint --version)"
 
-fmt-typescript: ## ✨ Format TypeScript code
-	@if [ -n "$(TS_DIRS)" ]; then \
-		echo "$(YELLOW)Formatting TypeScript code in: $(TS_DIRS)$(RESET)"; \
-		for dir in $(TS_DIRS); do \
-			if [ -d "$$dir" ]; then \
-				echo "$(YELLOW)  Processing $$dir...$(RESET)"; \
-				cd $$dir && prettier --write "**/*.{ts,tsx,js,jsx,json,md}"; \
-				cd - > /dev/null; \
-			else \
-				echo "$(RED)    Directory $$dir does not exist$(RESET)"; \
-			fi; \
-		done; \
-		echo "$(GREEN)TypeScript code formatting completed$(RESET)"; \
-	else \
-		echo "$(BLUE)Skipping TypeScript formatting (no TypeScript projects configured)$(RESET)"; \
-	fi
-
 check-typescript: ## 🔍 Check TypeScript code quality
 	@if [ -n "$(TS_DIRS)" ]; then \
 		echo "$(YELLOW)Checking TypeScript code quality in: $(TS_DIRS)$(RESET)"; \

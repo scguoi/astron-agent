@@ -58,24 +58,6 @@ check-tools-java: ## ✅ Check Java development tools availability
 		echo "  Maven version: $$(mvn --version | head -n 1)"; \
 	fi
 
-fmt-java: ## ✨ Format Java code
-	@if [ -n "$(JAVA_DIRS)" ]; then \
-		echo "$(YELLOW)Formatting Java code in: $(JAVA_DIRS)$(RESET)"; \
-		for dir in $(JAVA_DIRS); do \
-			if [ -d "$$dir" ]; then \
-				echo "$(YELLOW)  Processing $$dir...$(RESET)"; \
-				cd $$dir && $(MVN) spotless:apply $(MAVEN_DEFAULT_OPTS); \
-				cd - > /dev/null; \
-			else \
-				echo "$(RED)    Directory $$dir does not exist$(RESET)"; \
-			fi; \
-		done; \
-		echo "$(GREEN)Java code formatting completed$(RESET)"; \
-	else \
-		echo "$(BLUE)Skipping Java formatting (no Java projects configured)$(RESET)"; \
-	fi
-	@echo "$(GREEN)Console backend code formatting checks passed$(RESET)"
-
 check-java: ## 🔍 Check Java code quality
 	@if [ -n "$(JAVA_DIRS)" ]; then \
 		echo "$(YELLOW)Checking Java code quality in: $(JAVA_DIRS)$(RESET)"; \

@@ -24,6 +24,8 @@ go.work.sum
 bin/
 pkg/
 vendor/
+.gocache/
+.golangci-cache/
 
 # Java/Maven
 target/
