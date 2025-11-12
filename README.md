@@ -4,6 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-apache2.0-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/iflytek/astron-agent?style=social)](https://github.com/iflytek/astron-agent/stargazers)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iflytek/astron-agent)
 
 English | [简体中文](README-zh.md)
 
