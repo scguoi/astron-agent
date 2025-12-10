@@ -5,6 +5,7 @@ Thank you for your interest in contributing to Astron Agent! We welcome contribu
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
+- [Contributor License Agreement](#contributor-license-agreement)
 - [Getting Started](#getting-started)
 - [Development Environment Setup](#development-environment-setup)
 - [Project Structure](#project-structure)
@@ -23,6 +24,21 @@ Thank you for your interest in contributing to Astron Agent! We welcome contribu
 This project adheres to a code of conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to the project maintainers.
 
 Please read our [Code of Conduct](.github/code_of_conduct.md) for details on our commitment to providing a welcoming and inclusive environment for all contributors.
+
+## Contributor License Agreement
+
+Before your contribution can be accepted, you must sign a Contributor License Agreement (CLA). This clarifies the intellectual property license granted with your contributions.
+
+- **Individual Contributors**: Please sign the [Individual Contributor License Agreement (ICLA)](docs/ICLA.md)
+- **Corporate Contributors**: If you are contributing on behalf of a company, please sign the [Corporate Contributor License Agreement (CCLA)](docs/CCLA.md)
+
+### How to Sign
+
+1. Download and print the appropriate CLA document
+2. Fill in and sign the agreement
+3. Scan and email the signed PDF to: **ifly_opensource@iflytek.com**
+
+Your first pull request will not be merged until we have received your signed CLA.
 
 ## Getting Started
 
