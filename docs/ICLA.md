@@ -4,11 +4,11 @@
 
 Thank you for your interest in contributing to the Astron Agent project (the "Project"). In order to clarify the intellectual property license granted with Contributions from any person or entity, the Project maintainers must have a Contributor License Agreement ("CLA") on file that has been signed by each Contributor, indicating agreement to the license terms below.
 
-感谢您对向 Astron Agent 项目（"项目"）贡献的兴趣。为厘清就个人或实体贡献内容而授予的知识产权��可，项目维护者必须对每位贡献者签署的贡献者许可协议（"CLA"）进行归档，以证明就以下许可条款达成的一致。
+感谢您对向 Astron Agent 项目（"项目"）贡献的兴趣。为厘清就个人或实体贡献内容而授予的知识产权许可，项目维护者必须对每位贡献者签署的贡献者许可协议（"CLA"）进行归档，以证明就以下许可条款达成的一致。
 
 This version of the Contributor License Agreement allows an individual to submit Contributions to the Project. If you are making a submission on behalf of a legal entity, then you should sign the separate Corporate Contributor License Agreement.
 
-此版本的贡献者许可协议允许个人向项目提交贡献内容。如果您是以公司名义进行提交，您��当另行签署一份公司贡献者许可协议。
+此版本的贡献者许可协议允许个人向项目提交贡献内容。如果您是以公司名义进行提交，您应当另行签署一份公司贡献者许可协议。
 
 Please complete and sign this Agreement, then scan and email a PDF file of this Agreement to: **ifly_opensource@iflytek.com**
 
