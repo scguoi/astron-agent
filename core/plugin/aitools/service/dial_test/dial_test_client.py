@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional, TypedDict, Union
 
 import requests
 
-from common.http_request import HttpRequest
-
 
 class ErrorResponse(TypedDict):
     code: int
@@ -54,7 +52,7 @@ class APITester:
             "data": {"url": config.url, "msg": "error"},
         }
         try:
-            response = HttpRequest(config.dict()).send()
+            response = requests.request(**config.dict())
             response.raise_for_status()
             code = response.json().get("code")
             if code != config.success_code:
@@ -86,7 +84,7 @@ class MainRunner:
             max_workers or (len(self.api_configs) * 2) + 1
         )  # Default to a reasonable number of workers
 
-    # 接口列表
+    # List of interfaces to test
     def interface_list(self) -> List[str]:
         # int_list = ["TTS", "SMARTTS"]
 
@@ -140,6 +138,6 @@ if __name__ == "__main__":
     runner = MainRunner()
     all_results = runner.run_tests()
 
-    # 打印结果
+    # Print results
     for url, result in all_results.items():
         print(f"Result for {url}: {result}")

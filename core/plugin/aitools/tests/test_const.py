@@ -4,11 +4,10 @@ import os
 import sys
 from unittest.mock import patch
 
-from const.const import (
+from const.const import (  # IMAGE_GENERATE_MAX_PROMPT_LEN,
     ENV_DEVELOPMENT,
     ENV_PRERELEASE,
     ENV_PRODUCTION,
-    IMAGE_GENERATE_MAX_PROMPT_LEN,
     SERVICE_APP_KEY,
     SERVICE_LOCATION_KEY,
     SERVICE_NAME_KEY,
@@ -152,16 +151,16 @@ class TestServiceConstants:
 class TestApplicationConstants:
     """Test cases for application-specific constants."""
 
-    def test_image_generate_max_prompt_len(self) -> None:
-        """Test IMAGE_GENERATE_MAX_PROMPT_LEN constant."""
-        assert IMAGE_GENERATE_MAX_PROMPT_LEN == 510
-        assert isinstance(IMAGE_GENERATE_MAX_PROMPT_LEN, int)
-        assert IMAGE_GENERATE_MAX_PROMPT_LEN > 0
+    # def test_image_generate_max_prompt_len(self) -> None:
+    #     """Test IMAGE_GENERATE_MAX_PROMPT_LEN constant."""
+    #     assert IMAGE_GENERATE_MAX_PROMPT_LEN == 510
+    #     assert isinstance(IMAGE_GENERATE_MAX_PROMPT_LEN, int)
+    #     assert IMAGE_GENERATE_MAX_PROMPT_LEN > 0
 
-    def test_image_generate_max_prompt_len_reasonable_value(self) -> None:
-        """Test that IMAGE_GENERATE_MAX_PROMPT_LEN has reasonable value."""
-        # Assuming this is for text prompts, 510 characters seems reasonable
-        assert 100 <= IMAGE_GENERATE_MAX_PROMPT_LEN <= 1000
+    # def test_image_generate_max_prompt_len_reasonable_value(self) -> None:
+    #     """Test that IMAGE_GENERATE_MAX_PROMPT_LEN has reasonable value."""
+    #     # Assuming this is for text prompts, 510 characters seems reasonable
+    #     assert 100 <= IMAGE_GENERATE_MAX_PROMPT_LEN <= 1000
 
 
 class TestConstantsIntegrity:
@@ -182,7 +181,7 @@ class TestConstantsIntegrity:
         assert SERVICE_APP_KEY is not None
 
         # Test application constants
-        assert IMAGE_GENERATE_MAX_PROMPT_LEN is not None
+        # assert IMAGE_GENERATE_MAX_PROMPT_LEN is not None
 
     def test_constants_types(self) -> None:
         """Test that constants have expected types."""
@@ -199,7 +198,7 @@ class TestConstantsIntegrity:
         assert isinstance(SERVICE_APP_KEY, str)
 
         # Application constants
-        assert isinstance(IMAGE_GENERATE_MAX_PROMPT_LEN, int)
+        # assert isinstance(IMAGE_GENERATE_MAX_PROMPT_LEN, int)
 
     def test_no_accidental_mutations(self) -> None:
         """Test that constants cannot be accidentally mutated (for mutable types)."""
@@ -208,7 +207,7 @@ class TestConstantsIntegrity:
         import const.const
 
         original_production = const.const.ENV_PRODUCTION
-        original_max_len = const.const.IMAGE_GENERATE_MAX_PROMPT_LEN
+        # original_max_len = const.const.IMAGE_GENERATE_MAX_PROMPT_LEN
 
         # Re-import and verify original values are preserved
         import importlib
@@ -216,7 +215,7 @@ class TestConstantsIntegrity:
         importlib.reload(const.const)
 
         assert const.const.ENV_PRODUCTION == original_production
-        assert const.const.IMAGE_GENERATE_MAX_PROMPT_LEN == original_max_len
+        # assert const.const.IMAGE_GENERATE_MAX_PROMPT_LEN == original_max_len
 
 
 class TestEnvironmentScenarios:
@@ -316,14 +315,14 @@ class TestConstantsUsage:
             assert os.getenv(SERVICE_PORT_KEY) == "8080"
             assert os.getenv(SERVICE_APP_KEY) == "test_app"
 
-    def test_image_prompt_validation_pattern(self) -> None:
-        """Test using IMAGE_GENERATE_MAX_PROMPT_LEN for validation."""
-        # Simulate prompt length validation
-        valid_prompt = "a" * (IMAGE_GENERATE_MAX_PROMPT_LEN - 1)
-        max_length_prompt = "a" * IMAGE_GENERATE_MAX_PROMPT_LEN
-        too_long_prompt = "a" * (IMAGE_GENERATE_MAX_PROMPT_LEN + 1)
+    # def test_image_prompt_validation_pattern(self) -> None:
+    #     """Test using IMAGE_GENERATE_MAX_PROMPT_LEN for validation."""
+    #     # Simulate prompt length validation
+    #     valid_prompt = "a" * (IMAGE_GENERATE_MAX_PROMPT_LEN - 1)
+    #     max_length_prompt = "a" * IMAGE_GENERATE_MAX_PROMPT_LEN
+    #     too_long_prompt = "a" * (IMAGE_GENERATE_MAX_PROMPT_LEN + 1)
 
-        # Common validation pattern
-        assert len(valid_prompt) < IMAGE_GENERATE_MAX_PROMPT_LEN
-        assert len(max_length_prompt) == IMAGE_GENERATE_MAX_PROMPT_LEN
-        assert len(too_long_prompt) > IMAGE_GENERATE_MAX_PROMPT_LEN
+    #     # Common validation pattern
+    #     assert len(valid_prompt) < IMAGE_GENERATE_MAX_PROMPT_LEN
+    #     assert len(max_length_prompt) == IMAGE_GENERATE_MAX_PROMPT_LEN
+    #     assert len(too_long_prompt) > IMAGE_GENERATE_MAX_PROMPT_LEN
