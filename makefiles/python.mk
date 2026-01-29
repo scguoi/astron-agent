@@ -79,7 +79,7 @@ check-python: ## 🔍 Check Python code quality
 				echo "$(YELLOW)    4. Running mypy type checking...$(RESET)" && \
 				$(PYTHON) -m $(MYPY) . && \
 				echo "$(YELLOW)    5. Running pylint code analysis...$(RESET)" && \
-				$(PYTHON) -m $(PYLINT) *.py); then \
+				find . -name "*.py" -type f -print0 | xargs -0 $(PYTHON) -m $(PYLINT)); then \
 					echo "$(GREEN)    ✅ $$dir passed all checks$(RESET)"; \
 				else \
 					echo "$(RED)    ❌ $$dir failed quality checks$(RESET)"; \
