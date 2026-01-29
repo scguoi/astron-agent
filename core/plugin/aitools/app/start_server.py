@@ -124,11 +124,13 @@ class AIToolsServer:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
-        init_kafka_send_workers()
+        if os.getenv("KAFKA_ENABLE") == "1":
+            init_kafka_send_workers()
         yield
     finally:
         await close_aiohttp_session()
-        shutdown_kafka_workers()
+        if os.getenv("KAFKA_ENABLE") == "1":
+            shutdown_kafka_workers()
 
 
 def aitools_app() -> FastAPI:
