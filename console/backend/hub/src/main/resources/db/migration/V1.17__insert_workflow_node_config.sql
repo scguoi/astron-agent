@@ -1,3 +1,6 @@
+ALTER TABLE astron_console.config_info ADD order_no INT NULL;
+ALTER TABLE astron_console.config_info_en ADD order_no INT NULL;
+
 INSERT INTO config_info (category, code, name, value, is_valid, remarks, create_time, update_time, order_no) VALUES('WORKFLOW_NODE_TEMPLATE', '1,2', '工具', '{
     "aliasName": "MCP",
     "idType": "mcp",
@@ -173,4 +176,7 @@ UPDATE config_info SET value='[
         "markdown": "## 用途\\n即插即用：通过标准化协议，为智能体无缝扩展外部工具与数据能力。\\n\\n## 示例\\n\\n调用bilibili-search MCP工具，搜索B站里的视频内容\\n\\n### 输入\\n\\n| 参数名字 | 参数值 |\\n|---------|--------|\\n| limit | 3 |\\n| page | 1 |\\n| keyword | 开始/AGENT_USER_INPUT |\\n### 输出\\n\\n| 参数名字 | 参数值 | 描述 |\\n|---------|--------|------|\\n| result | object | 输出结果 |\\n\\n### 异常处理\\n\\n超时120s 重试2次 依然失败中断流程\\n\\n![占位图片](http://oss-beijing-m8.openstorage.cn/SparkBotProd/icon/common/bilibili.jpeg)"
     }
 ]' WHERE category='TEMPLATE' and  code='node';
+
+SELECT ci.category, ci.code, ci.name, ci.value from config_info ci where category = 'IP_BLACK_LIST';
+SELECT ci.category, ci.code, ci.name, ci.value from config_info ci where category = 'NETWORK_SEGMENT_BLACK_LIST';
 
