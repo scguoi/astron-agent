@@ -9,10 +9,10 @@ from typing import Optional
 
 from common.otlp.log_trace.node_trace_log import NodeTraceLog
 from common.otlp.metrics.meter import Meter
-from common.otlp.trace.span import Span
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from plugin.aitools.api.schemas.types import ErrorResponse
+from plugin.aitools.common.clients.adapters import SpanLike
 from plugin.aitools.common.exceptions.error.code_enums import CodeEnums
 from plugin.aitools.utils.otlp_utils import update_span, upload_trace
 from starlette import status as http_status
@@ -76,7 +76,7 @@ async def service_exception_handler(
 ) -> JSONResponse:
     """Handle API exceptions and log them with tracing"""
     assert isinstance(exc, ServiceException)
-    span: Optional[Span] = (
+    span: Optional[SpanLike] = (
         request.state.span if hasattr(request.state, "span") else None
     )
     node_trace: Optional[NodeTraceLog] = (
@@ -102,7 +102,7 @@ async def service_exception_handler(
 async def http_exception_handler(request: Request, exc: BaseException) -> JSONResponse:
     """Handle HTTP client exceptions and log them with tracing"""
     assert isinstance(exc, HTTPException)
-    span: Optional[Span] = (
+    span: Optional[SpanLike] = (
         request.state.span if hasattr(request.state, "span") else None
     )
     node_trace: Optional[NodeTraceLog] = (
@@ -134,7 +134,7 @@ async def generic_exception_handler(
     request: Request, exc: BaseException
 ) -> JSONResponse:
     """Handle generic exceptions and log them with tracing"""
-    span: Optional[Span] = (
+    span: Optional[SpanLike] = (
         request.state.span if hasattr(request.state, "span") else None
     )
     node_trace: Optional[NodeTraceLog] = (
@@ -150,7 +150,7 @@ async def generic_exception_handler(
 
     if span:
         span.set_attribute("error.code", content.code)
-        span.record_exception(exc)
+        span.record_exception(exc)  # type: ignore[arg-type]
 
     upload_trace(content, meter, node_trace)
 

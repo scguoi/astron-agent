@@ -66,7 +66,7 @@ async def upload_file(
         try:
             oss_service = get_oss_service()
             oss_url = await run_in_threadpool(
-                oss_service.upload_file, filename, file_bytes
+                oss_service.upload_file, filename, file_bytes  # type: ignore[attr-defined]
             )
             return oss_url
         except Exception as e:

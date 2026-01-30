@@ -3,7 +3,7 @@ ApiService module for registering API services.
 """
 
 # pylint: disable=too-many-arguments
-from typing import Callable, Literal, Optional
+from typing import Callable, Literal, Optional, Type
 
 from plugin.aitools.api.decorators.api_meta import ApiMeta, BodyT, QueryT, RespT
 from plugin.aitools.common.exceptions.error.code_enums import CodeEnums
@@ -14,9 +14,9 @@ def api_service(
     *,
     method: str,
     path: str,
-    query: Optional[QueryT] = None,
-    body: Optional[BodyT] = None,
-    response: Optional[RespT] = None,
+    query: Optional[Type[QueryT]] = None,
+    body: Optional[Type[BodyT]] = None,
+    response: Optional[Type[RespT]] = None,
     summary: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[
@@ -31,10 +31,14 @@ def api_service(
     method = method.upper()
 
     if method not in {"GET", "POST", "PUT", "DELETE", "PATCH"}:
-        raise ServiceException(f"Unsupported HTTP method: {method}")
+        raise ServiceException.from_error_code(
+            CodeEnums.ServiceParamsError, extra_message="Invalid method"
+        )
 
     if not path.startswith("/"):
-        raise ServiceException("API path must start with '/'")
+        raise ServiceException.from_error_code(
+            CodeEnums.ServiceParamsError, extra_message="Invalid path"
+        )
 
     def decorator(func: Callable) -> Callable:
         # GET method does not support body

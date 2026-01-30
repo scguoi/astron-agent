@@ -29,8 +29,10 @@ async def gen_params(
     app_id: str | None, question: str, image_url: str, span: Optional[SpanLike]
 ) -> Dict[str, Any]:
     async with HttpClient("GET", image_url, span).start() as client:
-        response = await client.request()
-        imagedata = base64.b64encode(response.data["content"]).decode("utf-8")
+        async with client.request() as response:
+            imagedata = base64.b64encode(await response.data["content"].read()).decode(  # type: ignore[index]
+                "utf-8"
+            )
         return {
             "header": {"app_id": app_id},
             "parameter": {
@@ -60,7 +62,7 @@ async def gen_params(
     response=BaseResponse,
     summary="Image Understanding",
     description="Image Understanding",
-    tags=["public_cn"],
+    tags="public_cn",
     deprecated=False,
 )
 async def image_understanding_service(
@@ -70,7 +72,7 @@ async def image_understanding_service(
     meter: Optional[Meter] = None,
     node_trace: Optional[NodeTraceLog] = None,
 ) -> BaseResponse:
-    imageunderstanding_url = os.getenv("IMAGE_UNDERSTANDING_URL")
+    imageunderstanding_url = os.getenv("IMAGE_UNDERSTANDING_URL", "")
 
     params = await gen_params(
         app_id=os.getenv("AI_APP_ID"),

@@ -1,9 +1,29 @@
 import json
+from typing import Any, Dict, List, Optional, Protocol
 
+from aiohttp import ClientResponse
 from common.otlp.trace.span import SPAN_SIZE_LIMIT
-from plugin.aitools.api.schemas.types import ErrorResponse
-from plugin.aitools.common.clients.adapters import ClientT, SpanLike
+from plugin.aitools.api.schemas.types import BaseResponse, ErrorResponse
+from plugin.aitools.common.clients.adapters import SpanLike
 from plugin.aitools.common.log.logger import log
+
+
+class HttpLikeClient(Protocol):
+    url: str
+    method: str
+    kwargs: Dict[str, Any]
+    response: Optional[BaseResponse]
+
+
+class WebSocketLikeClient(Protocol):
+    url: str
+    kwargs: Dict[str, Any]
+    ws_params: Dict[str, Any]
+    send_data_list: List[Any]
+    recv_data_list: List[Any]
+
+    async def close(self) -> None:
+        pass
 
 
 def add_info(span: SpanLike, key: str, value: str) -> None:
@@ -13,7 +33,7 @@ def add_info(span: SpanLike, key: str, value: str) -> None:
 
 
 class WebSocketSpanHooks:
-    def setup(self, client: ClientT, span: SpanLike) -> None:
+    def setup(self, client: WebSocketLikeClient, span: SpanLike) -> None:
         try:
             span.set_attributes(
                 {
@@ -31,7 +51,7 @@ class WebSocketSpanHooks:
                 f"Failed to set attributes for span in WebSocketSpanHooks: {e}"
             )
 
-    async def teardown(self, client: ClientT, span: SpanLike) -> None:
+    async def teardown(self, client: WebSocketLikeClient, span: SpanLike) -> None:
         try:
             if client.send_data_list:
                 send_data = json.dumps(
@@ -52,7 +72,7 @@ class WebSocketSpanHooks:
 
 
 class HttpSpanHooks:
-    def setup(self, client: ClientT, span: SpanLike) -> None:
+    def setup(self, client: HttpLikeClient, span: SpanLike) -> None:
         try:
             span.set_attributes(
                 {"Request URL": client.url, "Request method": client.method}
@@ -63,14 +83,15 @@ class HttpSpanHooks:
         except Exception as e:
             log.exception(f"Failed to set attributes for span in HttpSpanHooks: {e}")
 
-    async def teardown(self, client: ClientT, span: SpanLike) -> None:
+    async def teardown(self, client: HttpLikeClient, span: SpanLike) -> None:
         try:
+            if not client.response:
+                return
+
             if isinstance(client.response, ErrorResponse):
                 response_str = client.response.model_dump_json()
-            elif isinstance(client.response.data.get("content", None), bytes):
-                response_str = (
-                    f"Binary data, length: {len(client.response.data['content'])}"
-                )
+            elif isinstance(client.response.data.get("content", None), ClientResponse):  # type: ignore[union-attr]
+                response_str = "Return raw ClientResponse object"
             else:
                 response_str = client.response.model_dump_json()
             add_info(span, "Response", response_str)

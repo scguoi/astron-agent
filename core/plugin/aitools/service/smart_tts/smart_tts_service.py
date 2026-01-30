@@ -74,7 +74,7 @@ def gen_data(app_id: str | None, text: str, vcn: str, speed: int) -> Dict[str, A
     response=BaseResponse,
     summary="Smart TTS",
     description="Convert text to speech",
-    tags=["public_cn"],
+    tags="public_cn",
     deprecated=False,
 )
 async def smart_tts_service(
@@ -90,10 +90,10 @@ async def smart_tts_service(
             CodeEnums.ServiceParamsError, extra_message="text不能为空"
         )
 
-    url = os.getenv("TTS_URL")
-    app_id = os.getenv("AI_APP_ID")
-    api_key = os.getenv("AI_API_KEY")
-    api_secret = os.getenv("AI_API_SECRET")
+    url = os.getenv("TTS_URL", "")
+    app_id = os.getenv("AI_APP_ID", "")
+    api_key = os.getenv("AI_API_KEY", "")
+    api_secret = os.getenv("AI_API_SECRET", "")
     data = gen_data(app_id, body.text, body.vcn, body.speed)
 
     audio_data = bytearray()

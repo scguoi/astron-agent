@@ -9,7 +9,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-import fitz
+import fitz  # type: ignore
 from common.otlp.log_trace.node_trace_log import NodeTraceLog
 from common.otlp.metrics.meter import Meter
 from common.utils.hmac_auth import HMACAuth
@@ -316,27 +316,28 @@ class OcrLLMTask:
                     span=self.parent_span,
                     headers={"content-type": "application/json"},
                     params=HMACAuth.build_auth_params(
-                        self.url, "GET", self.api_key, self.api_secret
+                        self.url, "GET", self.api_key, self.api_secret  # type: ignore[arg-type]
                     ),
                     json=self.body,
                 ).start() as client:
-                    response = await client.request()
+                    async with client.request() as response:
+                        name = "markdown"
+                        values = []
+                        source_datas = []
 
-                    name = "markdown"
-                    values = []
-                    source_datas = []
+                        value, source_data = self._handle_message(
+                            response.data["content"]  # type: ignore[index]
+                        )
+                        values.append(value)
+                        source_datas.append(source_data)
 
-                    value, source_data = self._handle_message(response.data["content"])
-                    values.append(value)
-                    source_datas.append(source_data)
-
-                    return {
-                        "file_index": self.file_index,
-                        "page_index": self.page_index,
-                        "name": name,
-                        "values": "\n".join(values),
-                        "source_datas": source_datas,
-                    }
+                        return {
+                            "file_index": self.file_index,
+                            "page_index": self.page_index,
+                            "name": name,
+                            "values": "\n".join(values),
+                            "source_datas": source_datas,
+                        }
         except ServiceException as e:
             return {
                 "file_index": self.file_index,
@@ -355,10 +356,7 @@ class OcrLLMTask:
             }
 
     def _handle_message(self, msg: Any) -> Tuple[str, str]:
-        if not isinstance(msg, Dict):
-            data = json.loads(msg)
-        else:
-            data = msg
+        data = msg
 
         payload = data.get("payload")
         header = data.get("header", {})
@@ -494,7 +492,7 @@ def merge_results(
     response=BaseResponse,
     summary="OCR with LLM",
     description="OCR with LLM",
-    tags=["public_cn"],
+    tags="public_cn",
     deprecated=False,
 )
 async def req_ase_ability_ocr_service(
@@ -506,8 +504,8 @@ async def req_ase_ability_ocr_service(
 ) -> BaseResponse:
     image_byte_arrays = []
     async with HttpClient("GET", body.file_url, span).start() as client:
-        image_data = await client.request()
-        image_byte_arrays.append(image_data.data["content"])
+        async with client.request() as response:
+            image_byte_arrays.append(await response.data["content"].read())  # type: ignore[index]
 
     url = os.getenv(
         "OCR_LLM_WS_URL", "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"

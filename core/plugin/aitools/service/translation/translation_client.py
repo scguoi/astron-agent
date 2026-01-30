@@ -190,7 +190,7 @@ class TranslationClient:
 
             # Generate authentication URL
             auth_url = HMACAuth.build_auth_request_url(
-                self.base_url,
+                self.base_url,  # type: ignore[arg-type]
                 method="POST",
                 api_key=self.api_key,
                 api_secret=self.api_secret,

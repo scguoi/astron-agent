@@ -34,12 +34,12 @@ def gen_params(
     prompt: str,
     width: int,
     height: int,
-    url: str | None,
-    app_id: str | None,
-    api_key: str | None,
-    api_secret: str | None,
+    url: str,
+    app_id: str,
+    api_key: str,
+    api_secret: str,
 ) -> Tuple[Dict[str, Any], Dict[str, str]]:
-    params = HMACAuth.build_auth_params(url, "POST", api_key, api_secret)
+    params = HMACAuth.build_auth_params(url, "POST", api_key, api_secret)  # type: ignore[arg-type]
     body = {
         "header": {
             "app_id": app_id,
@@ -74,7 +74,7 @@ def gen_params(
     response=BaseResponse,
     summary="ASE image generate",
     description="ASE image generate",
-    tags=["public_cn"],
+    tags="public_cn",
 )
 async def req_ase_ability_image_generate_service(
     body: ImageGenerate,
@@ -83,10 +83,10 @@ async def req_ase_ability_image_generate_service(
     meter: Optional[Meter] = None,
     node_trace: Optional[NodeTraceLog] = None,
 ) -> BaseResponse:
-    url = os.getenv("IMAGE_GENERATE_URL")
-    app_id = os.getenv("AI_APP_ID")
-    api_key = os.getenv("AI_API_KEY")
-    api_secret = os.getenv("AI_API_SECRET")
+    url = os.getenv("IMAGE_GENERATE_URL", "")
+    app_id = os.getenv("AI_APP_ID", "")
+    api_key = os.getenv("AI_API_KEY", "")
+    api_secret = os.getenv("AI_API_SECRET", "")
 
     data, params = gen_params(
         body.prompt, body.width, body.height, url, app_id, api_key, api_secret
@@ -99,12 +99,8 @@ async def req_ase_ability_image_generate_service(
         params=params,
         json=data,
     ).start() as client:
-        response = await client.request()
-
-    if not isinstance(response.data["content"], dict):
-        content = json.loads(response.data["content"])
-    else:
-        content = response.data["content"]
+        async with client.request() as response:
+            content = json.loads(await response.data.get("content", "").text())  # type: ignore[union-attr]
 
     header = content.get("header", {})
     code = header.get("code", 0)

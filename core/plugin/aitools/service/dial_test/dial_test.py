@@ -15,7 +15,7 @@ from plugin.aitools.api.decorators.api_service import api_service
     path="/aitools/v1/dial_test",
     summary="Dial test service",
     description="Health checks and service availability monitoring.",
-    tags=["unclassified"],
+    tags="unclassified",
     deprecated=False,
 )
 async def dial_test_servic(

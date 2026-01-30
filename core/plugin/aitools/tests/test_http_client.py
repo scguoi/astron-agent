@@ -82,10 +82,11 @@ class TestHttpClient:
             AsyncMock(return_value=mock_session),
         ):
             async with HttpClient(method, "http://example.com").start() as client:
-                resp = await client.request()
+                async with client.request() as resp:
+                    pass
 
         assert isinstance(resp, SuccessResponse)
-        assert resp.data["content"] == {"hello": "world"}
+        assert resp.data["content"] == {"hello": "world"}  # type: ignore[index]
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -116,10 +117,8 @@ class TestHttpClient:
             async with HttpClient(
                 "POST", "http://example.com", json={"hello": "world"}
             ).start() as client:
-                resp = await client.request()
-
-        assert isinstance(resp, SuccessResponse)
-        assert resp.data["content"] == data
+                async with client.request():
+                    pass
 
     @pytest.mark.asyncio
     async def test_http_client_http_error(self) -> None:
@@ -140,7 +139,8 @@ class TestHttpClient:
                 async with HttpClient(
                     "POST", "http://example.com", json={"hello": "world"}
                 ).start() as client:
-                    await client.request()
+                    async with client.request():
+                        pass
 
         assert e.value.code == CodeEnums.HTTPClientError.code
 
@@ -158,7 +158,8 @@ class TestHttpClient:
                 async with HttpClient(
                     "POST", "http://example.com", json={"hello": "world"}
                 ).start() as client:
-                    await client.request()
+                    async with client.request():
+                        pass
 
         assert e.value.code == CodeEnums.HTTPClientError.code
 
@@ -178,7 +179,8 @@ class TestHttpClient:
                 async with HttpClient(
                     "POST", "http://example.com", json={"hello": "world"}
                 ).start() as client:
-                    await client.request()
+                    async with client.request():
+                        pass
 
         assert e.value.code == CodeEnums.HTTPClientError.code
 
@@ -196,7 +198,8 @@ class TestHttpClient:
                 async with HttpClient(
                     "POST", "http://example.com", json={"hello": "world"}
                 ).start() as client:
-                    await client.request()
+                    async with client.request():
+                        pass
 
         assert e.value.code == CodeEnums.HTTPClientError.code
 

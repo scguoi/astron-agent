@@ -151,7 +151,7 @@ def _kafka_worker_process(
             data = data_queue.get(timeout=1)
             if data == SENTINEL:
                 break
-            kafka_producer.send(os.getenv(const.KAFKA_TOPIC_KEY), data)
+            kafka_producer.send(os.getenv(const.KAFKA_TOPIC_KEY), data)  # type: ignore
         except queue.Empty:
             continue
         except Exception as e:

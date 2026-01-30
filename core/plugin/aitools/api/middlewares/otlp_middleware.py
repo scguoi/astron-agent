@@ -220,7 +220,7 @@ class OTLPMiddleware(BaseHTTPMiddleware):
             app_id=self.app_id,
             uid=self.uid,
             chat_id=sid,
-            sub=os.getenv(SERVICE_SUB_KEY),
+            sub=os.getenv(SERVICE_SUB_KEY, ""),
             caller="",
             log_caller=func_name,
             question=usr_input_str,
