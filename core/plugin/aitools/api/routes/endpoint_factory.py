@@ -101,8 +101,8 @@ def build_endpoint(service_func: Callable) -> Callable:
         endpoint_async.__name__ = service_func.__name__
         endpoint_async.__doc__ = meta.description or service_func.__doc__
         return endpoint_async
-    else:
-        cast(Any, endpoint_sync).__signature__ = inspect.Signature(params)
-        endpoint_sync.__name__ = service_func.__name__
-        endpoint_sync.__doc__ = meta.description or service_func.__doc__
-        return endpoint_sync
+
+    cast(Any, endpoint_sync).__signature__ = inspect.Signature(params)
+    endpoint_sync.__name__ = service_func.__name__
+    endpoint_sync.__doc__ = meta.description or service_func.__doc__
+    return endpoint_sync

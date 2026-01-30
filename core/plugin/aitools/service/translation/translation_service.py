@@ -20,6 +20,8 @@ from pydantic import BaseModel, field_validator, model_validator
 
 
 class TranslationCodeEnums(BaseCodeEnum, Enum):
+    """Translation error codes"""
+
     TRANSLATION_EMPTY_ERROR = (45250, "翻译文本不能为空")
     TRANSLATION_TOO_LONG_ERROR = (45251, "翻译文本超过5000字符限制")
     TRANSLATION_LANG_ERROR = (45252, "不支持的语言组合")
@@ -30,6 +32,8 @@ class TranslationCodeEnums(BaseCodeEnum, Enum):
 
 
 class TranslationInput(BaseModel):
+    """Translation input"""
+
     text: str  # Original text to be translated
     target_language: str  # Target language code
     source_language: str = (
@@ -39,6 +43,7 @@ class TranslationInput(BaseModel):
     @field_validator("text")
     @classmethod
     def validate_text(cls, value: str) -> str:
+        """validate text"""
         if not value or not value.strip():
             raise ValueError("Translation text cannot be empty")
         if len(value) > 5000:
@@ -48,6 +53,7 @@ class TranslationInput(BaseModel):
     @field_validator("target_language")
     @classmethod
     def validate_target_language(cls, value: str) -> str:
+        """validate target language"""
         if value not in VALID_LANGUAGE_CODES:
             raise ValueError(
                 f"Invalid target language: {value}.\n"
@@ -58,6 +64,7 @@ class TranslationInput(BaseModel):
     @field_validator("source_language")
     @classmethod
     def validate_source_language(cls, value: str) -> str:
+        """validate source language"""
         if value not in VALID_LANGUAGE_CODES:
             raise ValueError(
                 f"Invalid source language: {value}.\n"
@@ -89,6 +96,7 @@ class TranslationInput(BaseModel):
     deprecated=True,
 )
 async def translation_service(body: TranslationInput, request: Request) -> BaseResponse:
+    """translation service"""
     app_id = os.getenv("AI_APP_ID")
     app_key = os.getenv("AI_API_KEY")
     app_secret = os.getenv("AI_API_SECRET")
@@ -104,21 +112,21 @@ async def translation_service(body: TranslationInput, request: Request) -> BaseR
         return SuccessResponse(
             code=0, message="success", data=result, sid=request.state.sid
         )
-    else:
-        # Map error messages to appropriate error codes
-        error_code = TranslationCodeEnums.TRANSLATION_API_ERROR
-        error_code_mapping = {
-            "翻译文本不能为空": TranslationCodeEnums.TRANSLATION_EMPTY_ERROR,
-            "翻译文本超过5000字符限制": TranslationCodeEnums.TRANSLATION_TOO_LONG_ERROR,
-            "不支持的语言组合": TranslationCodeEnums.TRANSLATION_LANG_ERROR,
-            "API请求失败": TranslationCodeEnums.TRANSLATION_API_ERROR,
-            "API返回数据格式错误": TranslationCodeEnums.TRANSLATION_RESPONSE_ERROR,
-        }
-        for key in error_code_mapping.keys():
-            if key in message:
-                error_code = error_code_mapping.get(
-                    key, TranslationCodeEnums.TRANSLATION_API_ERROR
-                )
-                break
+    # Map error messages to appropriate error codes
+    error_code = TranslationCodeEnums.TRANSLATION_API_ERROR
+    error_code_mapping = {
+        "翻译文本不能为空": TranslationCodeEnums.TRANSLATION_EMPTY_ERROR,
+        "翻译文本超过5000字符限制": TranslationCodeEnums.TRANSLATION_TOO_LONG_ERROR,
+        "不支持的语言组合": TranslationCodeEnums.TRANSLATION_LANG_ERROR,
+        "API请求失败": TranslationCodeEnums.TRANSLATION_API_ERROR,
+        "API返回数据格式错误": TranslationCodeEnums.TRANSLATION_RESPONSE_ERROR,
+    }
+    matched_key = next((key for key in error_code_mapping if key in message), None)
 
-        raise ServiceException.from_error_code(error_code)
+    error_code = (
+        error_code_mapping[matched_key]
+        if matched_key
+        else TranslationCodeEnums.TRANSLATION_API_ERROR
+    )
+
+    raise ServiceException.from_error_code(error_code)

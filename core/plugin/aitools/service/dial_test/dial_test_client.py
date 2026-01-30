@@ -1,3 +1,8 @@
+"""
+Dial test client
+"""
+
+# pylint: disable=too-many-arguments,too-few-public-methods,broad-exception-caught
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -7,12 +12,16 @@ import requests
 
 
 class ErrorResponse(TypedDict):
+    """Error response data type"""
+
     code: int
     message: str
     data: Dict[str, str]
 
 
 class APIConfiguration:
+    """API configuration data type"""
+
     def __init__(
         self,
         target_url: str,
@@ -32,6 +41,7 @@ class APIConfiguration:
         self.call_frequency = call_frequency
 
     def dict(self) -> dict:
+        """Return API configuration as a dictionary."""
         return {
             "url": self.url,
             "method": self.method,
@@ -43,9 +53,12 @@ class APIConfiguration:
 
 
 class APITester:
+    """API tester class"""
+
     def execute_request(
         self, config: APIConfiguration
     ) -> Union[ErrorResponse, Dict[str, Any]]:
+        """Execute API request with specified configuration."""
         ex_res: ErrorResponse = {
             "code": -1,
             "message": "failed",
@@ -61,8 +74,7 @@ class APITester:
                     str(res["code"]) + "_" + str(config.url).rsplit("/", maxsplit=1)[-1]
                 )
                 return res
-            else:
-                return {}
+            return {}
         except requests.exceptions.Timeout:
             ex_res["data"]["msg"] = "The request timed out."
             # print("The request timed out.")
@@ -76,7 +88,10 @@ class APITester:
 
 
 class MainRunner:
+    """Main runner class"""
+
     def __init__(self, max_workers: Optional[int] = None) -> None:
+        """Initialize the main runner."""
         # load_dotenv('../../../dialtest.env')
         self.api_configs = self.load_api_configs()
         self.tester = APITester()
@@ -86,6 +101,7 @@ class MainRunner:
 
     # List of interfaces to test
     def interface_list(self) -> List[str]:
+        """Get list of interfaces to test."""
         # int_list = ["TTS", "SMARTTS"]
 
         # print('("INTERFACE_LIST_STR"):',os.getenv("INTERFACE_LIST_STR"))
@@ -97,6 +113,7 @@ class MainRunner:
         return int_list
 
     def load_api_configs(self) -> List[APIConfiguration]:
+        """Load API configurations from environment variables."""
         configs = []
         for prefix in self.interface_list():
             configs.append(
@@ -106,14 +123,15 @@ class MainRunner:
                     headers=json.loads(os.getenv(f"{prefix}_HEADERS", "{}")),
                     params=json.loads(os.getenv(f"{prefix}_PARAMS", "{}")),
                     payload=json.loads(os.getenv(f"{prefix}_PAYLOAD", "{}")),
-                    success_code=int(os.getenv(f"{prefix}_SUCCESS_CODE", -1)),
-                    call_frequency=int(os.getenv(f"{prefix}_CALL_FREQUENCY", 1)),
+                    success_code=int(os.getenv(f"{prefix}_SUCCESS_CODE", "-1")),
+                    call_frequency=int(os.getenv(f"{prefix}_CALL_FREQUENCY", "1")),
                 )
             )
 
         return configs
 
     def run_tests(self) -> Dict[str, Any]:
+        """Run API tests and return results."""
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
                 executor.submit(self.tester.execute_request, config): config

@@ -2,6 +2,7 @@
 Unit tests for ase image generator service.
 """
 
+# pylint: disable=line-too-long,redefined-outer-name
 import base64
 import uuid
 from typing import Iterator, Tuple
@@ -53,6 +54,7 @@ def build_image_api_response(
 
 @pytest.fixture
 def mock_uuid() -> Iterator[MagicMock | AsyncMock]:
+    """Mock uuid fixture"""
     with patch(
         "plugin.aitools.service.ase_image_generator.req_ase_ability_image_generate_service.uuid.uuid4"
     ) as m:
@@ -71,6 +73,7 @@ def mock_request() -> MagicMock:
 
 @pytest.fixture
 def mock_upload_file() -> Iterator[AsyncMock]:
+    """Mock upload file fixture"""
     with patch(
         "plugin.aitools.service.ase_image_generator.req_ase_ability_image_generate_service.upload_file",
         new_callable=AsyncMock,
@@ -81,6 +84,7 @@ def mock_upload_file() -> Iterator[AsyncMock]:
 
 @pytest.fixture
 def mock_http_client() -> Iterator[Tuple[MagicMock | AsyncMock, AsyncMock]]:
+    """Mock http client fixture"""
     with patch(
         "plugin.aitools.service.ase_image_generator.req_ase_ability_image_generate_service.HttpClient"
     ) as http_cls:
@@ -105,12 +109,11 @@ class TestImageGeneratorService:
     async def test_image_generate_success(
         self,
         mock_http_client: Tuple[MagicMock | AsyncMock, AsyncMock],
-        mock_uuid: MagicMock | AsyncMock,
         mock_upload_file: AsyncMock,
         mock_request: MagicMock,
     ) -> None:
         """Test image generate success"""
-        http_cls, client = mock_http_client
+        _, client = mock_http_client
 
         client.request.return_value = build_image_api_response()
 
@@ -132,12 +135,10 @@ class TestImageGeneratorService:
     async def test_image_generate_third_api_error(
         self,
         mock_http_client: Tuple[MagicMock | AsyncMock, AsyncMock],
-        mock_uuid: MagicMock | AsyncMock,
-        mock_upload_file: AsyncMock,
         mock_request: MagicMock,
     ) -> None:
         """Test image generate third API error"""
-        http_cls, client = mock_http_client
+        _, client = mock_http_client
 
         client.request.return_value = build_image_api_response(
             code=10001,
@@ -159,8 +160,7 @@ class TestImageGeneratorService:
     async def test_prompt_truncated(
         self,
         mock_http_client: Tuple[MagicMock | AsyncMock, AsyncMock],
-        mock_uuid: MagicMock | AsyncMock,
-        mock_upload_file: AsyncMock,
+        mock_upload_file: AsyncMock,  # pylint: disable=unused-argument
         mock_request: MagicMock,
     ) -> None:
         """Test prompt truncated"""

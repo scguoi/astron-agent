@@ -1,5 +1,6 @@
 """Unit tests for constants module."""
 
+# pylint: disable=import-outside-toplevel,import-error,no-name-in-module
 import os
 import sys
 from unittest.mock import patch
@@ -148,7 +149,7 @@ class TestServiceConstants:
             assert "_" in key
 
 
-class TestApplicationConstants:
+class TestApplicationConstants:  # pylint: disable=too-few-public-methods
     """Test cases for application-specific constants."""
 
     # def test_image_generate_max_prompt_len(self) -> None:

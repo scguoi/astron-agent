@@ -1,5 +1,6 @@
 """Unit tests for HttpClient class."""
 
+# pylint: disable=redefined-builtin
 import os
 import sys
 from typing import Any
@@ -26,6 +27,7 @@ def make_mock_response(
     text_data: str | None = None,
     binary_data: bytes | None = None,
 ) -> aiohttp.ClientResponse:
+    """Build mock response object."""
     resp = AsyncMock(spec=aiohttp.ClientResponse)
     resp.status = status
     resp.headers = headers or {}
@@ -51,6 +53,7 @@ def make_mock_response(
 
 
 def mock_session_with_response(resp: aiohttp.ClientResponse) -> aiohttp.ClientSession:
+    """Build mock session with response object."""
     cm = AsyncMock()
     cm.__aenter__.return_value = resp
     cm.__aexit__.return_value = None

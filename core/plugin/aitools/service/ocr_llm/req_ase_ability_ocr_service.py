@@ -2,6 +2,7 @@
 ASE OCR LLM Service
 """
 
+# pylint: disable=line-too-long,too-few-public-methods,too-many-instance-attributes,too-many-arguments
 import asyncio
 import base64
 import json
@@ -28,12 +29,15 @@ DOCUMENT_PAGE_UNLIMITED = -1
 
 
 class OCRLLM(BaseModel):
+    """OCR LLM Input"""
+
     file_url: str
     page_start: int = DOCUMENT_PAGE_UNLIMITED
     page_end: int = DOCUMENT_PAGE_UNLIMITED
 
 
 class OcrRespParse:
+    """OCR response parse"""
 
     @staticmethod
     def parse(ocr_resp: dict) -> str:
@@ -117,7 +121,7 @@ class OcrRespParse:
                 if is_get_text_attribute:
                     return OcrRespParse._process_text_attribute_mode(child_content2)
                 # Deal with the text
-                elif content_type == "paragraph":
+                if content_type == "paragraph":
                     result = OcrRespParse._process_paragraph_content(child_content2)
                     child_ocr_texts.append(result)
                 # Deal with the table information
@@ -140,8 +144,7 @@ class OcrRespParse:
         if content_type == "text_unit":
             attributes = child_content2.get("attribute", [{}])
             return [OcrRespParse._deal_text_attributes(attributes)]
-        else:
-            return OcrRespParse._deal_one(child_content2, True)
+        return OcrRespParse._deal_one(child_content2, True)
 
     @staticmethod
     def _process_paragraph_content(child_content2: Dict[str, Any]) -> str:

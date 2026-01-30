@@ -2,6 +2,7 @@
 ApiService module for registering API services.
 """
 
+# pylint: disable=too-many-arguments
 from typing import Callable, Literal, Optional
 
 from plugin.aitools.api.decorators.api_meta import ApiMeta, BodyT, QueryT, RespT

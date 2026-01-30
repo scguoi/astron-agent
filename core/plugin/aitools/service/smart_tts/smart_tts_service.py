@@ -2,6 +2,7 @@
 Smart TTS Service
 """
 
+# pylint: disable=too-many-locals, unused-argument, wrong-import-order
 import base64
 import json
 import os
@@ -22,12 +23,15 @@ from pydantic import BaseModel
 
 
 class SmartTTSInput(BaseModel):
+    """Smart TTS Input"""
+
     text: str
     vcn: str
     speed: int = 50  # Optional, default value is 50
 
 
 def gen_data(app_id: str | None, text: str, vcn: str, speed: int) -> Dict[str, Any]:
+    """Generate data for Smart TTS"""
     return {
         "header": {"app_id": app_id, "status": 2},
         "parameter": {
@@ -80,6 +84,7 @@ async def smart_tts_service(
     meter: Optional[Meter] = None,
     node_trace: Optional[NodeTraceLog] = None,
 ) -> BaseResponse:
+    """Smart TTS Service"""
     if not body.text:
         raise ServiceException.from_error_code(
             CodeEnums.ServiceParamsError, extra_message="text不能为空"

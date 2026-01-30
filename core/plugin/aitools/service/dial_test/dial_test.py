@@ -2,6 +2,7 @@
 Dial test service module providing health checks and service availability monitoring.
 """
 
+# pylint: disable=line-too-long,broad-exception-caught,unused-argument
 from typing import Any, Dict, Optional
 
 import requests
@@ -20,6 +21,7 @@ from plugin.aitools.api.decorators.api_service import api_service
 async def dial_test_servic(
     request: Request,
 ) -> Dict[str, Any] | None:
+    """Dial test service"""
     return dial_test_main(
         method="GET",
         url="http://localhost/health",
