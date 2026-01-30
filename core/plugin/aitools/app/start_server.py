@@ -91,16 +91,16 @@ class AIToolsServer:
         ]
         initialize_services(services=need_init_services)
 
-        try:
-            import asyncio
+        # try:
+        #     import asyncio
 
-            from plugin.aitools.extension.gateway.watchdog import setup_watchdog
+        #     from plugin.aitools.extension.gateway.watchdog import setup_watchdog
 
-            asyncio.run(setup_watchdog())
-        except (ModuleNotFoundError, ImportError):
-            pass
-        except Exception as e:
-            print(f"[Service] ⚠️  gateway watchdog setup exception:{str(e)}")
+        #     asyncio.run(setup_watchdog())
+        # except (ModuleNotFoundError, ImportError):
+        #     pass
+        # except Exception as e:
+        #     print(f"[Service] ⚠️  gateway watchdog setup exception:{str(e)}")
 
     @staticmethod
     def start_uvicorn() -> None:

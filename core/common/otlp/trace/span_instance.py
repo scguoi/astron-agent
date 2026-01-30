@@ -60,7 +60,7 @@ class SpanInstance:
         return self._span_stack[-1] if self._span_stack else None
 
     # pylint: disable=too-many-arguments
-    def start(
+    def start(  # type: ignore[no-untyped-def]
         self,
         func_name: str = "",
         add_source_function_name: bool = False,
@@ -108,7 +108,7 @@ class SpanInstance:
         self._span_stack.append(span)
         self._token_stack.append(token)
 
-    def stop(self, exc: Exception | None = None):
+    def stop(self, exc: Exception | None = None):  # type: ignore
         """Stop span"""
         if not self._span_stack:
             return

@@ -64,14 +64,14 @@ class ISEInput(BaseModel):
     response=BaseResponse,
     summary="ISE Evaluation",
     description="ISE Evaluation",
-    tags=["public_cn"],
+    tags="public_cn",
     deprecated=True,
 )
 async def ise_evaluate_service(body: ISEInput, request: Request) -> BaseResponse:
     """ISE Evaluation Service"""
-    app_id = os.getenv("AI_APP_ID")
-    app_key = os.getenv("AI_API_KEY")
-    app_secret = os.getenv("AI_API_SECRET")
+    app_id = os.getenv("AI_APP_ID", "")
+    app_key = os.getenv("AI_API_KEY", "")
+    app_secret = os.getenv("AI_API_SECRET", "")
 
     audio_bytes = base64.b64decode(body.audio_data)
     ise_client = ISEClient(app_id, app_key, app_secret)

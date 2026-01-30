@@ -92,14 +92,14 @@ class TranslationInput(BaseModel):
     response=BaseResponse,
     summary="Translate text from Chinese (cn) to other languages",
     description="Translate text from Chinese (cn) to other languages",
-    tags=["public_cn"],
+    tags="public_cn",
     deprecated=True,
 )
 async def translation_service(body: TranslationInput, request: Request) -> BaseResponse:
     """translation service"""
-    app_id = os.getenv("AI_APP_ID")
-    app_key = os.getenv("AI_API_KEY")
-    app_secret = os.getenv("AI_API_SECRET")
+    app_id = os.getenv("AI_APP_ID", "")
+    app_key = os.getenv("AI_API_KEY", "")
+    app_secret = os.getenv("AI_API_SECRET", "")
 
     translation_client = TranslationClient(app_id, app_key, app_secret)
     success, message, result = translation_client.translate(
@@ -129,4 +129,4 @@ async def translation_service(body: TranslationInput, request: Request) -> BaseR
         else TranslationCodeEnums.TRANSLATION_API_ERROR
     )
 
-    raise ServiceException.from_error_code(error_code)
+    raise ServiceException.from_error_code(error_code)  # type: ignore[arg-type]

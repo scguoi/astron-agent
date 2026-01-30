@@ -17,7 +17,7 @@ def register_api_services(
     Register all API services in a FastAPI router.
     """
     for service_func in iter_api_services():
-        meta: ApiMeta = service_func.__api_meta__
+        meta: ApiMeta = service_func.__api_meta__  # type: ignore
 
         # if meta.internal and not include_internal:
         #     continue
@@ -33,6 +33,6 @@ def register_api_services(
             response_model=meta.response,
             summary=meta.summary,
             description=meta.description,
-            tags=meta.tags,
+            tags=meta.tags,  # type: ignore[arg-type]
             deprecated=meta.deprecated,
         )

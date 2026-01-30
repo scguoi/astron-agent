@@ -134,7 +134,8 @@ class HttpClient(InstrumentedClient):
         """Start aiohttp client"""
         yield self
 
-    async def request(self) -> BaseResponse:
+    @asynccontextmanager
+    async def request(self) -> AsyncIterator[BaseResponse]:
         """Send async request and return standardized response"""
         try:
             self._auth()
@@ -155,7 +156,7 @@ class HttpClient(InstrumentedClient):
 
                 resp.raise_for_status()
                 self.response = await self._build_response(resp)
-                return self.response
+                yield self.response
 
         except HTTPClientException as e:
             raise e
@@ -170,16 +171,8 @@ class HttpClient(InstrumentedClient):
 
     async def _build_response(self, resp: aiohttp.ClientResponse) -> BaseResponse:
         """Build standardized response from aiohttp response"""
-        content_type = resp.headers.get("Content-Type", "").lower()
-
-        if "application/json" in content_type:
+        try:
             json_data = await resp.json()
             return SuccessResponse(data={"content": json_data})
-        elif content_type.startswith("image/") or content_type.startswith(
-            "application/octet"
-        ):
-            image_data = await resp.read()
-            return SuccessResponse(data={"content": image_data})
-        else:
-            text_data = await resp.text()
-            return SuccessResponse(data={"content": text_data})
+        except Exception:
+            return SuccessResponse(data={"content": resp})

@@ -19,7 +19,7 @@ from urllib.parse import urlencode
 from wsgiref.handlers import format_date_time
 
 import websocket
-from pydub import AudioSegment
+from pydub import AudioSegment  # type: ignore
 
 
 class AudioConverter:

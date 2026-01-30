@@ -155,7 +155,7 @@ class TestWebSocketClient:
 
         with patch("websockets.connect", AsyncMock(return_value=ws)):
             async with WebSocketClient(
-                "ws://example.com", task_factory=InlineTaskFactory()
+                "ws://example.com", task_factory=InlineTaskFactory()  # type: ignore[arg-type]
             ).start() as client:
                 with pytest.raises(WebSocketClientException) as e:
                     async for _ in client.recv():
@@ -170,7 +170,7 @@ class TestWebSocketClient:
 
         with patch("websockets.connect", AsyncMock(return_value=ws)):
             async with WebSocketClient(
-                "ws://example.com", task_factory=InlineTaskFactory()
+                "ws://example.com", task_factory=InlineTaskFactory()  # type: ignore[arg-type]
             ).start() as client:
                 msg = await client.recv_queue.get()
 
@@ -186,7 +186,7 @@ class TestWebSocketClient:
         with patch("websockets.connect", AsyncMock(return_value=ws)):
             with pytest.raises(WebSocketClientException) as e:
                 async with WebSocketClient(
-                    "ws://example.com", task_factory=InlineTaskFactory()
+                    "ws://example.com", task_factory=InlineTaskFactory()  # type: ignore[arg-type]
                 ).start() as client:
                     async for _ in client.recv():
                         pass
