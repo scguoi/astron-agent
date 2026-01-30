@@ -8,7 +8,7 @@ pooling, session management, and context manager support.
 from typing import Any, Generator, Optional
 
 from loguru import logger
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlmodel import Session  # type: ignore
 
 from workflow.extensions.middleware.base import Service
@@ -49,21 +49,37 @@ class DatabaseService(Service):
         self.pool_size = pool_size
         self.max_overflow = max_overflow
         self.pool_recycle = pool_recycle
-        self.engine = self._create_engine()
+        self._create_database()
+        self.engine = self._create_engine(self.database_url)
 
-    def _create_engine(self) -> "Engine":
+    def _create_engine(self, url: str) -> "Engine":
         """
         Create and configure the SQLAlchemy engine.
 
+        :param url: Database connection URL string
         :return: Configured SQLAlchemy engine instance
         """
         return create_engine(
-            self.database_url,
+            url,
             echo=False,
             pool_size=self.pool_size,
             max_overflow=self.max_overflow,
             pool_recycle=self.pool_recycle,
         )
+
+    def _create_database(self) -> None:
+        """
+        Create the database if it doesn't exist.
+        """
+        try:
+            server_url, db_name = self.database_url.rsplit("/", 1)
+            engine = self._create_engine(server_url)
+            with engine.connect() as conn:
+                conn.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}`"))
+                conn.commit()
+            engine.dispose()
+        except Exception as e:
+            logger.warning(f"Failed to create database: {e}")
 
     def __enter__(self) -> Session:
         """

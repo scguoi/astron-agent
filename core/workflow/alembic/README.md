@@ -38,8 +38,6 @@ alembic downgrade <revision>
 alembic downgrade base
 ```
 
- 
-
 
 ## Workflow for Model Changes
 
