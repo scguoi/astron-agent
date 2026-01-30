@@ -16,10 +16,14 @@ from pydantic import BaseModel, field_validator
 
 
 class ISECodeEnums(BaseCodeEnum, Enum):
+    """ISE Error Code Enums"""
+
     ISE_EVALUATION_FAILED = (460001, "ISE 评测失败")
 
 
 class ISEInput(BaseModel):
+    """ISE Input"""
+
     audio_data: str  # Base64 encoded audio data
     text: str = ""  # Optional text to be evaluated
     language: str = "cn"  # Language type: cn(Chinese)/en(English)
@@ -33,6 +37,7 @@ class ISEInput(BaseModel):
     @field_validator("group")
     @classmethod
     def validate_group(cls, value: str) -> str:
+        """Validate group"""
         valid_groups = ["pupil", "youth", "adult"]
         if value not in valid_groups:
             raise ValueError(f"Invalid group: {value}. Valid options: {valid_groups}")
@@ -41,6 +46,7 @@ class ISEInput(BaseModel):
     @field_validator("audio_data")
     @classmethod
     def validate_audio_data(cls, value: str) -> str:
+        """Validate audio_data"""
         if not value:
             raise ValueError("audio_data cannot be empty")
         try:
@@ -62,6 +68,7 @@ class ISEInput(BaseModel):
     deprecated=True,
 )
 async def ise_evaluate_service(body: ISEInput, request: Request) -> BaseResponse:
+    """ISE Evaluation Service"""
     app_id = os.getenv("AI_APP_ID")
     app_key = os.getenv("AI_API_KEY")
     app_secret = os.getenv("AI_API_SECRET")
@@ -79,8 +86,8 @@ async def ise_evaluate_service(body: ISEInput, request: Request) -> BaseResponse
     if success:
         data = {k: v for k, v in result.items() if k != "raw_xml"}
         return SuccessResponse(data=data, sid=request.state.sid)
-    else:
-        raise ServiceException(
-            message=ISECodeEnums.ISE_EVALUATION_FAILED.message + ": " + message,
-            code=ISECodeEnums.ISE_EVALUATION_FAILED.code,
-        )
+
+    raise ServiceException(
+        message=ISECodeEnums.ISE_EVALUATION_FAILED.message + ": " + message,
+        code=ISECodeEnums.ISE_EVALUATION_FAILED.code,
+    )

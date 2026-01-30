@@ -2,6 +2,7 @@
 Unit tests for image understanding service.
 """
 
+# pylint: disable=redefined-outer-name,unused-argument,line-too-long
 import json
 from typing import AsyncIterator, Iterator, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch

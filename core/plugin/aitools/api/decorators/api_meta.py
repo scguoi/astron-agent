@@ -1,7 +1,10 @@
 """
-ApiMeta module for defining API metadata such as method, path, query, body, response, summary, description, tags, internal, and deprecated.
+ApiMeta module for defining API metadata such as
+method, path, query, body, response, summary, description, tags,
+and deprecated.
 """
 
+# pylint: disable=too-many-instance-attributes
 from dataclasses import dataclass
 from typing import Generic, Literal, Optional, Type, TypeVar
 
@@ -15,7 +18,8 @@ RespT = TypeVar("RespT", bound=BaseResponse)
 
 @dataclass(frozen=True)
 class ApiMeta(Generic[QueryT, BodyT, RespT]):
-    # HTTP request configuration
+    """HTTP API metadata."""
+
     method: str
     path: str
     query: Optional[Type[QueryT]] = None

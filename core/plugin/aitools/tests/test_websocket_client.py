@@ -1,5 +1,6 @@
 """Unit tests for WebSocketClient class."""
 
+# pylint: disable=unnecessary-lambda
 import asyncio
 from typing import Any, Coroutine, Iterable, List, Optional, TypeVar
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -16,6 +17,7 @@ T = TypeVar("T")
 def make_mock_ws(
     *, recv_data: Optional[Iterable[Any] | BaseException] = None
 ) -> AsyncMock:
+    """Build mock WebSocket."""
     ws = AsyncMock()
     ws.send = AsyncMock()
     ws.close = AsyncMock()
@@ -28,13 +30,15 @@ def make_mock_ws(
     return ws
 
 
-class InlineTaskFactory:
+class InlineTaskFactory:  # pylint: disable=too-few-public-methods
     """Task factory that creates tasks inline."""
 
     def __init__(self) -> None:
+        """Initialize task factory."""
         self.created: List = []
 
     def create(self, coro: Coroutine[Any, Any, T]) -> asyncio.Task:
+        """Create task inline."""
         self.created.append(coro)
         return asyncio.create_task(coro)
 
@@ -193,14 +197,14 @@ class TestWebSocketClient:
     async def test_websocket_client_recv_stop_on_none(self) -> None:
         """Test WebSocketClient recv stop on None."""
         client = WebSocketClient("ws://example.com")
-        client._running = True
+        client._running = True  # pylint: disable=protected-access
         await client.recv_queue.put(None)
 
         msgs = []
         async for msg in client.recv():
             msgs.append(msg)
 
-        assert msgs == []
+        assert not msgs
 
     @pytest.mark.asyncio
     async def test_websocket_client_send_loop_error(self) -> None:
@@ -242,6 +246,7 @@ class TestWebSocketClient:
 
     @pytest.mark.asyncio
     async def test_websocket_client_close_idempotent(self) -> None:
+        """Test WebSocketClient close idempotent."""
         ws = make_mock_ws()
 
         with patch("websockets.connect", AsyncMock(return_value=ws)):

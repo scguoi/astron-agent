@@ -5,6 +5,7 @@ Supports bidirectional translation between Chinese and other languages including
 English, Japanese, Korean, and Russian.
 """
 
+# pylint: disable=broad-exception-caught
 import base64
 import json
 import logging
@@ -73,7 +74,7 @@ def is_valid_language_pair(source: str, target: str) -> bool:
     """Check if language pair is supported (requires Chinese as pivot)"""
     if source not in VALID_LANGUAGE_CODES or target not in VALID_LANGUAGE_CODES:
         return False
-    return source == CHINESE_LANGUAGE_CODE or target == CHINESE_LANGUAGE_CODE
+    return CHINESE_LANGUAGE_CODE in (source, target)
 
 
 def get_supported_language_name(code: str) -> str:
@@ -140,9 +141,8 @@ class TranslationClient:
                 and "dst" in response_json["trans_result"]
             ):
                 return response_json["trans_result"]["dst"]
-            else:
-                # Fallback: return full response if structure is unexpected
-                return response_text
+            # Fallback: return full response if structure is unexpected
+            return response_text
         except json.JSONDecodeError:
             # Fallback: return raw text if it's not JSON
             return response_text
@@ -243,7 +243,7 @@ class TranslationClient:
             )
 
         except Exception as e:
-            logging.error(f"Translation error: {str(e)}")
+            logging.error("Translation error: %s", str(e))
             return False, f"翻译过程中发生错误: {str(e)}", {}
 
     def get_supported_languages(self) -> Dict[str, str]:

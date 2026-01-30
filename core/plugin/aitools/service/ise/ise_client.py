@@ -2,6 +2,7 @@
 ISE speech evaluation client module providing intelligent speech assessment services.
 """
 
+# # pylint: disable=broad-exception-caught,line-too-long,too-few-public-methods,too-many-arguments,too-many-locals,import-outside-toplevel
 import _thread as thread
 import base64
 import hashlib
@@ -30,20 +31,19 @@ class AudioConverter:
         # Check the magic number of the audio data.
         if audio_data.startswith(b"RIFF") and b"WAVE" in audio_data[:12]:
             return "wav"
-        elif (
+        if (
             audio_data.startswith(b"ID3")
             or audio_data.startswith(b"\xff\xfb")
             or audio_data.startswith(b"\xff\xf3")
         ):
             return "mp3"
-        elif audio_data.startswith(b"OggS"):
+        if audio_data.startswith(b"OggS"):
             return "ogg"
-        elif audio_data.startswith(b"fLaC"):
+        if audio_data.startswith(b"fLaC"):
             return "flac"
-        elif audio_data.startswith(b"#!AMR"):
+        if audio_data.startswith(b"#!AMR"):
             return "amr"
-        else:
-            return "unknown"
+        return "unknown"
 
     @staticmethod
     def get_audio_properties(audio_data: bytes) -> Dict[str, Any]:
@@ -136,7 +136,7 @@ class AudioConverter:
             return wav_data, original_properties
 
         except Exception as e:
-            raise ValueError(f"音频转换失败: {str(e)}")
+            raise ValueError(f"音频转换失败: {e}") from e
 
     @staticmethod
     def validate_audio_format(audio_data: bytes) -> Tuple[bool, str]:
@@ -151,14 +151,12 @@ class AudioConverter:
                     and audio.channels == 1
                 ):
                     return True, "音频格式符合要求"
-                else:
-                    return (
-                        False,
-                        f"WAV格式不符合要求: {audio.frame_rate}Hz,\
-                              {audio.sample_width*8}bit, {audio.channels}声道",
-                    )
-            else:
-                return False, f"音频格式为{format_type}，需要转换为WAV"
+                return (
+                    False,
+                    f"WAV格式不符合要求: {audio.frame_rate}Hz,\
+                            {audio.sample_width*8}bit, {audio.channels}声道",
+                )
+            return False, f"音频格式为{format_type}，需要转换为WAV"
 
         except Exception as e:
             return False, f"音频验证失败: {str(e)}"
@@ -297,11 +295,16 @@ class ISEResultParser:
     def check_low_score_warning(
         result: Dict[str, Any], original_audio_properties: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Check the low score warning mechanism and add audio quality related warnings."""
+        """
+        Check the low score warning mechanism,
+        and add audio quality related warnings
+        """
         score = result.get("overall_score", 0)
         original_sample_rate = original_audio_properties.get("sample_rate")
 
-        # If the score is less than 5 and the original sample rate is not 16kHz, add a warning message.
+        # If the score is less than 5
+        # and the original sample rate is not 16kHz,
+        # add a warning message.
         if score < 5 and original_sample_rate and original_sample_rate != 16000:
             warning_msg = (
                 f"低分预警：检测到您的音频原始采样率为 {original_sample_rate}Hz，"
@@ -479,8 +482,7 @@ class ISEClient:
                     self.result, original_audio_properties
                 )
                 return True, "评测成功", self.result
-            else:
-                return False, "评测失败，未获取到结果", {}
+            return False, "评测失败，未获取到结果", {}
 
         except Exception as e:
             return False, f"评测过程中发生错误: {str(e)}", {}
@@ -608,8 +610,7 @@ class ISEClient:
             if is_last_frame:
                 self._send_final_frame(ws, chunk)
                 break
-            else:
-                self._send_middle_frame(ws, chunk)
+            self._send_middle_frame(ws, chunk)
 
     def _send_final_frame(self, ws: Any, chunk: bytes) -> None:
         """Sending the final frame data"""

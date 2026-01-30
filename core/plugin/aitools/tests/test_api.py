@@ -22,7 +22,7 @@ from plugin.aitools.common.exceptions.exceptions import (
 )
 
 
-class FakeService:
+class FakeService:  # pylint: disable=too-few-public-methods
     """Fake service for testing."""
 
     __api_meta__: ApiMeta
@@ -113,19 +113,23 @@ class TestOTLPMiddlewareWithDynamicRoutes:
 
     @pytest.fixture
     def client(self, app: FastAPI) -> TestClient:
+        """Client"""
         return TestClient(app, raise_server_exceptions=False)
 
     def test_normal_request_passes_through(self, client: TestClient) -> None:
+        """normal request passes through"""
         resp = client.get("/ok")
         assert resp.status_code == 200
         assert resp.json()["msg"] == "ok"
 
     def test_excluded_path_skips_middleware(self, client: TestClient) -> None:
+        """skip middleware for excluded path"""
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
 
     def test_http_exception_handled(self, client: TestClient) -> None:
+        """HTTP exception is handled"""
         resp = client.get("/http_error")
         body = resp.json()
 
@@ -135,6 +139,7 @@ class TestOTLPMiddlewareWithDynamicRoutes:
         assert "sid" in body
 
     def test_service_exception_handled(self, client: TestClient) -> None:
+        """Service exception is handled"""
         resp = client.get("/service_error")
         body = resp.json()
 
@@ -144,6 +149,7 @@ class TestOTLPMiddlewareWithDynamicRoutes:
         assert "sid" in body
 
     def test_generic_exception_handled(self, client: TestClient) -> None:
+        """Generic exception is handled"""
         resp = client.get("/crash")
         body = resp.json()
 
@@ -153,13 +159,16 @@ class TestOTLPMiddlewareWithDynamicRoutes:
         assert "sid" in body
 
     def test_dynamic_route_exists(self, client: TestClient) -> None:
+        """Dynamic route exists"""
         resp = client.post("/aitools/v1/ocr", json={})
         assert resp.status_code in (200, 422)
 
     def test_dynamic_route_prefix_applied(self, client: TestClient) -> None:
+        """Dynamic route prefix is applied"""
         resp = client.post("/aitools/v1/translation", json={})
         assert resp.status_code in (200, 422)
 
     def test_invalid_dynamic_route_returns_404(self, client: TestClient) -> None:
+        """Invalid dynamic route returns 404"""
         resp = client.get("/aitools/v1/not-exist")
         assert resp.status_code == 404
