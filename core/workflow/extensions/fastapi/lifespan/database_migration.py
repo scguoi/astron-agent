@@ -49,13 +49,12 @@ def run_database_migration() -> None:
     config.set_main_option("script_location", str(alembic_dir))
 
     cache_service = get_cache_service()
-    redis_client = cache_service._client
-    lock = redis_client.lock(name="workflow_database_migration_lock", timeout=60)
-    if lock.acquire(blocking=False):
+    is_locked = cache_service.setnx("workflow_database_migration_lock", "locked", ex=60)
+    if is_locked:
         try:
             command.upgrade(config, "head")
         except OperationalError as e:
-            db_error_code = e.orig.args[0]
+            db_error_code = getattr(e.orig, "args", [None])[0]
             if db_error_code in (
                 MYSQL_ERROR_SELECT_DENIED,
                 MYSQL_ERROR_ACCESS_DENIED,
@@ -78,5 +77,3 @@ def run_database_migration() -> None:
                 logging.error(f"Database migration failed: {e}")
         except Exception as e:
             logging.error(f"Database migration failed: {e}")
-        finally:
-            lock.release()
