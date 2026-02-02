@@ -198,6 +198,23 @@ class CodeExecutorConfig(BaseSettings):
         return self
 
 
+class DatabaseConfig(BaseSettings):
+    """
+    Database connection configuration.
+
+    Loads MySQL connection parameters from environment variables
+    (MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB).
+    """
+
+    model_config = {"env_prefix": "", "case_sensitive": False}
+
+    host: str = Field(default="", alias="MYSQL_HOST")
+    port: str = Field(default="", alias="MYSQL_PORT")
+    user: str = Field(default="", alias="MYSQL_USER")
+    password: str = Field(default="", alias="MYSQL_PASSWORD")
+    database: str = Field(default="", alias="MYSQL_DB")
+
+
 class WorkflowConfig(BaseModel):
     """
     Workflow configuration model.
@@ -206,3 +223,4 @@ class WorkflowConfig(BaseModel):
     file_config: FileConfig = Field(default_factory=FileConfig)
     pgsql_config: PgsqlConfig = Field(default_factory=PgsqlConfig)
     code_executor_config: CodeExecutorConfig = Field(default_factory=CodeExecutorConfig)
+    database_config: DatabaseConfig = Field(default_factory=DatabaseConfig)

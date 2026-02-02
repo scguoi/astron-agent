@@ -1,7 +1,9 @@
 import os
+from typing import Literal
 
 from loguru import logger
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.sql.schema import SchemaItem
 from sqlmodel import SQLModel
 
 from alembic import context  # type: ignore[attr-defined]
@@ -36,7 +38,30 @@ def get_metadata():  # type: ignore[no-untyped-def]
     return SQLModel.metadata
 
 
-def include_object(object: object, name: str, type_: str, reflected: bool, compare_to: object) -> bool:  # type: ignore[no-untyped-def]
+def include_object(
+    object: SchemaItem,
+    name: str | None,
+    type_: Literal[
+        "schema",
+        "table",
+        "column",
+        "index",
+        "unique_constraint",
+        "foreign_key_constraint",
+    ],
+    reflected: bool,
+    compare_to: SchemaItem | None,
+) -> bool:
+    """
+    Determine whether to include a schema object in migration.
+
+    :param object: The schema object
+    :param name: The name of the object
+    :param type_: The type of schema object
+    :param reflected: Whether the object was reflected from the database
+    :param compare_to: The object to compare to (if any)
+    :return: True if the object should be included, False otherwise
+    """
     if type_ == "foreign_key_constraint":
         return False
     return True
