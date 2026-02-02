@@ -67,7 +67,8 @@ def get_factories_and_deps() -> List[Tuple[Any, List[ServiceType]]]:
     ]
 
     try:
-        from workflow_business.extensions.middleware.watchdog import (
+        # Service automatic discovery is an enterprise-level feature
+        from workflow_business.extensions.middleware.watchdog import (  # type: ignore[import-not-found]
             factory as watchdog_factory,
         )
 
