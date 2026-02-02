@@ -78,7 +78,7 @@ def get_factories_and_deps() -> List[Tuple[Any, List[ServiceType]]]:
                 [ServiceType.WATCHDOG_SERVICE],
             )
         )
-    except Exception:
+    except ImportError:
         pass
 
     return factories
