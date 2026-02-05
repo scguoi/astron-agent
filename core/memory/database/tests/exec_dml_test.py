@@ -13,6 +13,7 @@ from memory.database.api.v1.exec_dml import (
     _build_table_alias_map,
     _collect_column_names,
     _collect_columns_and_keys,
+    _collect_functions_names,
     _collect_insert_keys,
     _collect_update_keys,
     _dml_add_where,
@@ -176,7 +177,7 @@ async def test_dml_split_success() -> None:
 
 @pytest.mark.asyncio
 async def test_exec_dml_sql_success() -> None:
-    """Test SQL execution (success scenario)."""
+    """Test SQL execution (success scenario) without parameters."""
     mock_db = AsyncMock(spec=AsyncSession)
     mock_span_context = MagicMock()
 
@@ -191,6 +192,7 @@ async def test_exec_dml_sql_success() -> None:
             {
                 "rewrite_dml": "INSERT INTO users (name) VALUES ('test')",
                 "insert_ids": [9001, 9002],
+                "params": {},
             }
         ]
 
@@ -206,6 +208,45 @@ async def test_exec_dml_sql_success() -> None:
         assert isinstance(exec_time, float)
         mock_exec.assert_called_once_with(
             mock_db, "INSERT INTO users (name) VALUES ('test')"
+        )
+        mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_exec_dml_sql_with_params() -> None:
+    """Test SQL execution with parameterized query (uses parse_and_exec_sql)."""
+    mock_db = AsyncMock(spec=AsyncSession)
+    mock_span_context = MagicMock()
+
+    mock_result = MagicMock()
+    mock_result.mappings.return_value.all.return_value = [{"name": "test_user"}]
+    with patch(
+        "memory.database.api.v1.exec_dml.parse_and_exec_sql", new_callable=AsyncMock
+    ) as mock_parse_exec:
+        mock_parse_exec.return_value = mock_result
+
+        rewrite_dmls = [
+            {
+                "rewrite_dml": "SELECT * FROM users WHERE name = :param_0",
+                "insert_ids": [],
+                "params": {"param_0": "test_value"},
+            }
+        ]
+
+        result, exec_time, error = await _exec_dml_sql(
+            db=mock_db,
+            rewrite_dmls=rewrite_dmls,
+            uid="u1",
+            span_context=mock_span_context,
+        )
+
+        assert error is None
+        assert result == [{"name": "test_user"}]
+        assert isinstance(exec_time, float)
+        mock_parse_exec.assert_called_once_with(
+            mock_db,
+            "SELECT * FROM users WHERE name = :param_0",
+            {"param_0": "test_value"},
         )
         mock_db.commit.assert_called_once()
 
@@ -377,16 +418,15 @@ def test_collect_column_names() -> None:
 
 def test_collect_insert_keys() -> None:
     """Test INSERT key collection."""
-    # Test with INSERT statement - the function may return empty list
-    # if AST structure doesn't match expectations, but should not crash
     dml = "INSERT INTO users (name, age, email) VALUES ('test', 20, 'test@example.com')"
     parsed = parse_one(dml)
     keys = _collect_insert_keys(parsed)
-    # Function should return a list (may be empty if AST structure differs)
     assert isinstance(keys, list)
-    # The function is designed to collect keys from INSERT column list
-    # If it returns empty, it means the AST structure check didn't match
-    # This is acceptable behavior - the function still works correctly
+    # SQLGlot may use Identifier or Column for INSERT columns; both valid structures
+    if keys:
+        assert "name" in keys
+        assert "age" in keys
+        assert "email" in keys
 
 
 def test_collect_update_keys() -> None:
@@ -409,12 +449,28 @@ def test_collect_update_keys_invalid() -> None:
 
 
 def test_collect_columns_and_keys() -> None:
-    """Test combined column and key collection."""
+    """Test combined function, column and key collection."""
     dml = "UPDATE users SET name = 'test' WHERE age > 18"
     parsed = parse_one(dml)
-    columns, keys = _collect_columns_and_keys(parsed)
+    functions, columns, keys = _collect_columns_and_keys(parsed)
+    assert isinstance(functions, list)
     assert "age" in columns
     assert "name" in keys
+
+
+def test_collect_functions_names() -> None:
+    """Test collecting function names from DML statements."""
+    # SELECT with current_user() function
+    dml = "SELECT current_user, name FROM users"
+    parsed = parse_one(dml)
+    func_names = _collect_functions_names(parsed)
+    assert "current_user" in func_names
+
+    # DML without functions - should return empty
+    dml_no_func = "SELECT name, age FROM users"
+    parsed_no_func = parse_one(dml_no_func)
+    func_names_empty = _collect_functions_names(parsed_no_func)
+    assert func_names_empty == []
 
 
 def test_validate_comparison_nodes_valid() -> None:
@@ -517,6 +573,39 @@ async def test_validate_dml_legality_invalid_name() -> None:
     # Parse JSONResponse body to get code
     body = json.loads(result.body)
     assert body["code"] == CodeEnum.DMLNotAllowed.code
+
+
+@pytest.mark.asyncio
+async def test_validate_dml_legality_reserved_function() -> None:
+    """Test DML legality validation with reserved function name."""
+    # current_user is reserved, used as function in SELECT
+    dml = "SELECT current_user, name FROM users"
+    span_context = MagicMock()
+    span_context.sid = "test-sid"
+    span_context.add_error_event = MagicMock()
+    uid = "u1"
+
+    result = await _validate_dml_legality(dml, uid, span_context)
+    assert result is not None
+    body = json.loads(result.body)
+    assert body["code"] == CodeEnum.DMLNotAllowed.code
+    assert "reserved keyword" in body["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_validate_dml_legality_reserved_keyword_in_insert() -> None:
+    """Test DML legality validation with reserved keyword in INSERT column."""
+    dml = "INSERT INTO users (select, user_name) VALUES ('a', 'b')"
+    span_context = MagicMock()
+    span_context.sid = "test-sid"
+    span_context.add_error_event = MagicMock()
+    uid = "u1"
+
+    result = await _validate_dml_legality(dml, uid, span_context)
+    assert result is not None
+    body = json.loads(result.body)
+    # Reserved keyword may be rejected by parser (SQLParseError) or validation (DMLNotAllowed)
+    assert body["code"] in (CodeEnum.SQLParseError.code, CodeEnum.DMLNotAllowed.code)
 
 
 @pytest.mark.asyncio
@@ -665,6 +754,8 @@ async def test_process_dml_statements_success() -> None:
 @pytest.mark.asyncio
 async def test_process_dml_statements_validation_error() -> None:
     """Test DML statement processing with validation error."""
+    from memory.database.domain.entity.views.http_resp import format_response
+
     dmls = ["SELECT * FROM users"]
     app_id = "app123"
     uid = "u1"
@@ -673,8 +764,11 @@ async def test_process_dml_statements_validation_error() -> None:
     mock_db = AsyncMock(spec=AsyncSession)
     schema = "prod_u1_1001"
 
-    error_response = MagicMock()
-    error_response.code = CodeEnum.DMLNotAllowed.code
+    error_response = format_response(
+        code=CodeEnum.DMLNotAllowed.code,
+        message="DML not allowed",
+        sid=span_context.sid,
+    )
 
     with patch(
         "memory.database.api.v1.exec_dml._validate_dml_legality",
@@ -688,7 +782,8 @@ async def test_process_dml_statements_validation_error() -> None:
 
         assert result is None
         assert error is not None
-        assert error.code == CodeEnum.DMLNotAllowed.code
+        body = json.loads(error.body)
+        assert body["code"] == CodeEnum.DMLNotAllowed.code
 
 
 def test_extract_table_ref() -> None:

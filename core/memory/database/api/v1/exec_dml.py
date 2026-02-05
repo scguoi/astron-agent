@@ -134,6 +134,8 @@ PGSQL_INVALID_KEY = [
     "where",
     "window",
     "with",
+    "current_database",
+    "system_user",
 ]
 
 
@@ -559,6 +561,42 @@ def to_jsonable(obj: Any) -> Any:
     return obj
 
 
+def _collect_functions_names(parsed: Any) -> list:
+    """
+    Collect function names from parsed SQL AST.
+    """
+    functions_to_validate = []
+    sqlglot_func_key_map = {
+        "currentuser": "current_user",
+        "sessionuser": "session_user",
+        "currentdate": "current_date",
+        "currenttime": "current_time",
+        # "currenttimestamp": "current_timestamp",
+        "currentschema": "current_schema",
+        "currentcatalog": "current_catalog",
+        "currentdatabase": "current_database",
+        "currentrole": "current_role",
+        "localtime": "localtime",
+        "localtimestamp": "localtimestamp",
+        "user": "user",
+        "systemuser": "system_user",
+    }
+
+    for node in parsed.walk():
+        if not isinstance(node, exp.Func):
+            continue
+
+        func_name = node.name
+        if not func_name:
+            key = getattr(node, "key", None) or type(node).__name__.lower()
+            func_name = sqlglot_func_key_map.get(key, "")
+
+        if func_name:
+            functions_to_validate.append(func_name)
+
+    return functions_to_validate
+
+
 def _collect_column_names(parsed: Any) -> list:
     """Collect column names."""
     columns_to_validate = []
@@ -611,13 +649,14 @@ def _collect_update_keys(parsed: Any) -> list:
     return keys_to_validate
 
 
-def _collect_columns_and_keys(parsed: Any) -> tuple[list, list]:
+def _collect_columns_and_keys(parsed: Any) -> tuple[list, list, list]:
     """Collect column names and key names that need validation."""
+    functions_to_validate = _collect_functions_names(parsed)
     columns_to_validate = _collect_column_names(parsed)
     insert_keys = _collect_insert_keys(parsed)
     update_keys = _collect_update_keys(parsed)
     keys_to_validate = insert_keys + update_keys
-    return columns_to_validate, keys_to_validate
+    return functions_to_validate, columns_to_validate, keys_to_validate
 
 
 def _validate_comparison_nodes(parsed: Any, uid: str, span_context: Any) -> Any:
@@ -726,7 +765,13 @@ async def _validate_dml_legality(dml: str, uid: str, span_context: Any) -> Any:
             return error_result
 
         # Collect column names and keys that need validation
-        columns_to_validate, keys_to_validate = _collect_columns_and_keys(parsed)
+        functions_to_validate, columns_to_validate, keys_to_validate = (
+            _collect_columns_and_keys(parsed)
+        )
+        # Validate reserved function
+        error_result = _validate_reserved_keywords(functions_to_validate, span_context)
+        if error_result:
+            return error_result
 
         # Validate column names
         error_result = _validate_name_pattern(
@@ -734,7 +779,10 @@ async def _validate_dml_legality(dml: str, uid: str, span_context: Any) -> Any:
         )
         if error_result:
             return error_result
-
+        # Validate reserved column
+        error_result = _validate_reserved_keywords(columns_to_validate, span_context)
+        if error_result:
+            return error_result
         # Validate key names
         error_result = _validate_name_pattern(
             keys_to_validate, "Key name", span_context
