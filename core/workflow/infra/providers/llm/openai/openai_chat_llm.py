@@ -186,9 +186,12 @@ class OpenAIChatAI(ChatAI):
 
             except StopAsyncIteration:
                 # Stream ended, mark as finished and yield final response
-                last_frame_data["choices"][0][
-                    "finish_reason"
-                ] = ChatStatus.FINISH_REASON.value
+                last_frame_data["choices"] = [
+                    {
+                        "finish_reason": ChatStatus.FINISH_REASON.value,
+                        "delta": {"content": "", "reasoning_content": ""},
+                    }
+                ]
                 yield LLMResponse(
                     msg=last_frame_data,
                 )
