@@ -62,7 +62,7 @@ async def gen_params(
     response=BaseResponse,
     summary="Image Understanding",
     description="Image Understanding",
-    tags="public_cn",
+    tags=["public_cn"],
     deprecated=False,
 )
 async def image_understanding_service(

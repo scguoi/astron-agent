@@ -74,7 +74,7 @@ def gen_data(app_id: str | None, text: str, vcn: str, speed: int) -> Dict[str, A
     response=BaseResponse,
     summary="Smart TTS",
     description="Convert text to speech",
-    tags="public_cn",
+    tags=["public_cn"],
     deprecated=False,
 )
 async def smart_tts_service(

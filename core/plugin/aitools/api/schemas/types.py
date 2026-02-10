@@ -4,6 +4,7 @@ API data type definitions module containing request and response data structures
 
 from typing import Any, Optional
 
+from plugin.aitools.common.exceptions.error.code_enums import CodeEnums
 from pydantic import BaseModel
 
 
@@ -61,7 +62,7 @@ class ErrorResponse(BaseResponse):
     @classmethod
     def from_enum(
         cls,
-        code_enum: Any,
+        code_enum: CodeEnums,
         *,
         sid: Optional[str] = None,
         extra_message: Optional[str] = None,

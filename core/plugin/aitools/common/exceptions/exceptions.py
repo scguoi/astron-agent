@@ -130,9 +130,7 @@ async def http_exception_handler(request: Request, exc: BaseException) -> JSONRe
     )
 
 
-async def generic_exception_handler(
-    request: Request, exc: BaseException
-) -> JSONResponse:
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle generic exceptions and log them with tracing"""
     span: Optional[SpanLike] = (
         request.state.span if hasattr(request.state, "span") else None
@@ -150,7 +148,7 @@ async def generic_exception_handler(
 
     if span:
         span.set_attribute("error.code", content.code)
-        span.record_exception(exc)  # type: ignore[arg-type]
+        span.record_exception(exc)
 
     upload_trace(content, meter, node_trace)
 

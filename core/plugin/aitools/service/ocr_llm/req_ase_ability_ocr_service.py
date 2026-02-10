@@ -357,7 +357,6 @@ class OcrLLMTask:
 
     def _handle_message(self, msg: Any) -> Tuple[str, str]:
         data = msg
-
         payload = data.get("payload")
         header = data.get("header", {})
 
@@ -492,7 +491,7 @@ def merge_results(
     response=BaseResponse,
     summary="OCR with LLM",
     description="OCR with LLM",
-    tags="public_cn",
+    tags=["public_cn"],
     deprecated=False,
 )
 async def req_ase_ability_ocr_service(
@@ -508,7 +507,7 @@ async def req_ase_ability_ocr_service(
             image_byte_arrays.append(await response.data["content"].read())  # type: ignore[index]
 
     url = os.getenv(
-        "OCR_LLM_WS_URL", "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
+        "OCR_LLM_HTTP_URL", "https://cbm01.cn-huabei-1.xf-yun.com/v1/private/se75ocrbm"
     )
     app_id = os.getenv("AI_APP_ID")
     api_key = os.getenv("AI_API_KEY")

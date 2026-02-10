@@ -20,6 +20,7 @@ from common.otlp.sid import SidGenerator2, SidInfo
 from common.otlp.trace.span import SPAN_SIZE_LIMIT, Span
 from common.otlp.trace.span_instance import SpanInstance
 from fastapi import Request
+from plugin.aitools.common.clients.adapters import adapt_span
 from plugin.aitools.common.log.logger import log
 from plugin.aitools.const.const import (
     SERVICE_LOCATION_KEY,
@@ -109,11 +110,11 @@ class OTLPMiddleware(BaseHTTPMiddleware):
             usr_input_str = await self._capture_user_input(request, span)
             node_trace, meter = self._init_node_trace(request, usr_input_str)
 
-            request.state.span = span
-            request.state.meter = meter
-            request.state.node_trace = node_trace
-            response = await call_next(request)
+            setattr(request.state, "span", adapt_span(span))
+            setattr(request.state, "meter", meter)
+            setattr(request.state, "node_trace", node_trace)
 
+            response = await call_next(request)
             return response
 
         except Exception:

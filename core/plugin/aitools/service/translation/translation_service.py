@@ -92,7 +92,7 @@ class TranslationInput(BaseModel):
     response=BaseResponse,
     summary="Translate text from Chinese (cn) to other languages",
     description="Translate text from Chinese (cn) to other languages",
-    tags="public_cn",
+    tags=["public_cn"],
     deprecated=True,
 )
 async def translation_service(body: TranslationInput, request: Request) -> BaseResponse:
