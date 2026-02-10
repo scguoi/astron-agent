@@ -8,28 +8,67 @@ from typing import Any, Dict, Optional
 import requests
 from fastapi import Request
 from plugin.aitools.api.decorators.api_service import api_service
+from pydantic import BaseModel, Field
+
+
+class DialtestQuery(BaseModel):
+    """Dial test query model"""
+
+    test: str = Field(
+        ...,
+        description="Test type (e.g. ping, tcp, http)",
+        examples=["ping", "tcp", "http"],
+    )
+
+
+class DialtestBody(BaseModel):
+    """Dial test body model"""
+
+    test: str = Field(
+        ...,
+        description="Test type (e.g. ping, tcp, http)",
+        examples=["ping", "tcp", "http"],
+    )
+
+
+class DialtestHeaders(BaseModel):
+    """Dial test headers model"""
+
+    test: str = Field(
+        ...,
+        description="Test type (e.g. ping, tcp, http)",
+        examples=["ping", "tcp", "http"],
+    )
 
 
 @api_service(
-    method="GET",
+    method="POST",
     path="/aitools/v1/dial_test",
+    query=DialtestQuery,
+    body=DialtestBody,
+    headers=DialtestHeaders,
+    response=list,
     summary="Dial test service",
     description="Health checks and service availability monitoring.",
-    tags="unclassified",
+    tags=["unclassified"],
     deprecated=False,
 )
 async def dial_test_servic(
     request: Request,
-) -> Dict[str, Any] | None:
+    query: DialtestQuery,
+    body: DialtestBody,
+    headers: DialtestHeaders,
+) -> list:
     """Dial test service"""
-    return dial_test_main(
-        method="GET",
-        url="http://localhost/health",
-        headers={},
-        payload={},
-        _success_code=200,
-        _call_frequency=1,
-    )
+    return ["message", "Dial test service"]
+    # return dial_test_main(
+    #     method="GET",
+    #     url="http://localhost/health",
+    #     headers={},
+    #     payload={},
+    #     _success_code=200,
+    #     _call_frequency=1,
+    # )
 
 
 def dial_test_main(

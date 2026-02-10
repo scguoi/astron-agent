@@ -10,12 +10,14 @@ import threading
 import time
 from multiprocessing import Array as mp_array
 from multiprocessing import Event
-from typing import Any, Optional
+from multiprocessing.synchronize import Event as mp_event
+from typing import Any, List, Optional, cast
 
 from common.otlp.log_trace.node_trace_log import NodeTraceLog, Status
 from common.otlp.metrics.meter import Meter
 from common.otlp.trace.span import SPAN_SIZE_LIMIT
 from common.service import get_kafka_producer_service
+from common.service.kafka.kafka_service import KafkaProducerService
 from plugin.aitools.api.schemas.types import BaseResponse, SuccessResponse
 from plugin.aitools.common.clients.adapters import SpanLike
 from plugin.aitools.common.log.logger import log
@@ -30,7 +32,7 @@ KAFKA_WORKER_TIMEOUT = 30
 KAFKA_WATCHDOG_INTERVAL = 5
 
 _worker_heartbeats = mp_array("d", KAFKA_MAX_WORKERS)
-_worker_processes = []
+_worker_processes: List[multiprocessing.Process] = []
 _worker_lock = threading.Lock()
 
 
@@ -136,22 +138,25 @@ def _kafka_worker_process(
     worker_idx: int,
     data_queue: multiprocessing.Queue,
     heartbeats: Any,
-    stop_event: Any,
+    stop_event: mp_event,
 ) -> None:
     """Kafka worker process"""
-    kafka_producer = None
+    kafka_producer: Optional[KafkaProducerService] = None
+    kafka_topic = os.getenv(const.KAFKA_TOPIC_KEY, "")
 
     while not stop_event.is_set():
         try:
             if not kafka_producer:
-                kafka_producer = get_kafka_producer_service()
+                kafka_producer = cast(
+                    KafkaProducerService, get_kafka_producer_service()
+                )
 
             heartbeats[worker_idx] = time.time()
 
             data = data_queue.get(timeout=1)
             if data == SENTINEL:
                 break
-            kafka_producer.send(os.getenv(const.KAFKA_TOPIC_KEY), data)  # type: ignore
+            kafka_producer.send(kafka_topic, data)
         except queue.Empty:
             continue
         except Exception as e:

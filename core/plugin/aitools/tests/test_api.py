@@ -34,7 +34,7 @@ class FakeService:  # pylint: disable=too-few-public-methods
             response=None,
             summary="fake service",
             description="fake dynamically registered service",
-            tags="public_cn",
+            tags=["public_cn"],
             deprecated=False,
         )
 

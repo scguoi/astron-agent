@@ -64,7 +64,7 @@ class ISEInput(BaseModel):
     response=BaseResponse,
     summary="ISE Evaluation",
     description="ISE Evaluation",
-    tags="public_cn",
+    tags=["public_cn"],
     deprecated=True,
 )
 async def ise_evaluate_service(body: ISEInput, request: Request) -> BaseResponse:

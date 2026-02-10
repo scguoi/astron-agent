@@ -74,7 +74,7 @@ def gen_params(
     response=BaseResponse,
     summary="ASE image generate",
     description="ASE image generate",
-    tags="public_cn",
+    tags=["public_cn"],
 )
 async def req_ase_ability_image_generate_service(
     body: ImageGenerate,
