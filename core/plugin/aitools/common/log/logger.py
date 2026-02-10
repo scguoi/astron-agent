@@ -3,6 +3,8 @@ Logging module providing unified logging configuration and interfaces.
 """
 
 import logging
+import os
+import sys
 from types import FrameType
 from typing import cast
 
@@ -18,6 +20,14 @@ logger.remove()  # Remove default logger
 logger.add(
     LOG_FILE, rotation=ROTATION, retention=RETENTION, encoding=ENCODING, level=LEVEL
 )
+
+# Add console handler for local environment
+if os.getenv("LOG_STDOUT_ENABLE", "0") == "1":
+    logger.add(
+        sys.stdout,
+        level=LEVEL,
+        colorize=True,
+    )
 
 
 def init_uvicorn_logger() -> None:
