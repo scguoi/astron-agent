@@ -195,7 +195,7 @@ async def test_exec_ddl_success() -> None:
 
                                 # Mock span service and instance
                                 mock_span_instance = MagicMock()
-                                mock_span_instance.start.return_value.__enter__.return_value = (
+                                mock_span_instance.start.return_value.__enter__.return_value = (  # noqa: E501
                                     fake_span_context
                                 )
                                 mock_span_service = MagicMock()
@@ -341,7 +341,7 @@ def test_collect_functions_names() -> None:
     ddl_no_func = "CREATE TABLE users (id INT, name TEXT)"
     parsed_no_func = parse_one(ddl_no_func)
     func_names_empty = _collect_functions_names(parsed_no_func)
-    assert func_names_empty == []
+    assert not func_names_empty
 
 
 def test_collect_ddl_identifiers() -> None:
@@ -366,7 +366,7 @@ def test_collect_ddl_identifiers() -> None:
     drop_sql = "DROP TABLE users"
     parsed_drop = parse_one(drop_sql)
     drop_columns = _collect_ddl_identifiers(parsed_drop)
-    assert drop_columns == []
+    assert not drop_columns
 
 
 def test_validate_reserved_keywords_ddl() -> None:
@@ -463,7 +463,8 @@ async def test_validate_ddl_legality_valid() -> None:
 async def test_validate_ddl_legality_invalid_column_name_with_digits() -> None:
     """Test DDL legality validation with invalid column name containing digits."""
     # This test case specifically addresses the code scanning issue:
-    # CREATE TABLE users_v2 (id INT) would have caught the overly restrictive regex pattern
+    # CREATE TABLE users_v2 (id INT) would have caught the overly restrictive
+    # regex pattern
     ddl = "CREATE TABLE users (id INT, users_v2 TEXT)"
     span_context = MagicMock()
     span_context.sid = "test-sid"
@@ -505,8 +506,12 @@ async def test_validate_ddl_legality_reserved_keyword() -> None:
     result = await _validate_ddl_legality(ddl, uid, span_context)
     assert result is not None
     body = json.loads(result.body)
-    # Reserved keyword may be rejected by parser (SQLParseError) or validation (DMLNotAllowed)
-    assert body["code"] in (CodeEnum.SQLParseError.code, CodeEnum.DMLNotAllowed.code)
+    # Reserved keyword may be rejected by parser (SQLParseError)
+    # or validation (DMLNotAllowed)
+    assert body["code"] in (
+        CodeEnum.SQLParseError.code,
+        CodeEnum.DMLNotAllowed.code,
+    )
 
 
 @pytest.mark.asyncio

@@ -463,7 +463,8 @@ def rewrite_dml_with_uid_and_limit(
     # Build mapping from Literal nodes to column names (only when needed)
     literal_column_map: Dict[int, str] = {}
     if column_types and tables:
-        # Use first table as default, but functions will get actual table name from Column nodes
+        # Use first table as default, but functions will get actual table name
+        # from Column nodes
         default_table_name = tables[0]
         # Build alias map to resolve table aliases to actual table names
         alias_map = _build_table_alias_map(parsed)
@@ -711,30 +712,37 @@ def _validate_name_pattern(names: list, name_type: str, span_context: Any) -> An
     """
     # Allowed characters for DML identifiers (column names, etc.)
     # Business rule: Only ASCII letters and underscores are allowed (no digits)
-    # This is intentionally more restrictive than standard SQL but is a deliberate design choice
-    # DO NOT modify this validation to allow digits - it violates business requirements
-    # Using string.ascii_letters constant instead of regex to avoid code scanning false positives
+    # This is intentionally more restrictive than standard SQL but is a
+    # deliberate design choice
+    # DO NOT modify this validation to allow digits - it violates business
+    # requirements
+    # Using string.ascii_letters constant instead of regex to avoid code
+    # scanning false positives
     allow_chars = string.ascii_letters + "_"
     for name in names:
         # Check if name is empty
         if not name:
-            span_context.add_error_event(
-                f"{name_type}: '{name}' does not conform to rules, only letters and underscores are supported"
+            error_msg = (
+                f"{name_type}: '{name}' does not conform to rules, "
+                "only letters and underscores are supported"
             )
+            span_context.add_error_event(error_msg)
             return format_response(
                 code=CodeEnum.DMLNotAllowed.code,
-                message=f"{name_type}: '{name}' does not conform to rules, only letters and underscores are supported",
+                message=error_msg,
                 sid=span_context.sid,
             )
 
         # Validate using column name
         if not all(c in allow_chars for c in name):
-            span_context.add_error_event(
-                f"{name_type}: '{name}' does not conform to rules, only letters and underscores are supported"
+            error_msg = (
+                f"{name_type}: '{name}' does not conform to rules, "
+                "only letters and underscores are supported"
             )
+            span_context.add_error_event(error_msg)
             return format_response(
                 code=CodeEnum.DMLNotAllowed.code,
-                message=f"{name_type}: '{name}' does not conform to rules, only letters and underscores are supported",
+                message=error_msg,
                 sid=span_context.sid,
             )
     return None
@@ -855,7 +863,8 @@ async def _get_table_column_types(
         tables: List of table names
 
     Returns:
-        dict: Column type mapping, key is "table.column", value is data type (e.g., 'timestamp without time zone', 'character varying', etc.)
+        dict: Column type mapping, key is "table.column", value is data type
+        (e.g., 'timestamp without time zone', 'character varying', etc.)
     """
     column_types: Dict[str, str] = {}
     for table in tables:
@@ -869,12 +878,11 @@ async def _get_table_column_types(
         )
         for row in result.fetchall():
             col_name = row[0]
-            data_type = row[
-                1
-            ]  # Standard data type, such as 'timestamp without time zone', 'character varying'
-            udt_name = row[
-                2
-            ]  # PostgreSQL specific type, such as 'timestamp', 'varchar'
+            # Standard data type, such as 'timestamp without time zone',
+            # 'character varying'
+            data_type = row[1]
+            # PostgreSQL specific type, such as 'timestamp', 'varchar'
+            udt_name = row[2]
             key = f"{table}.{col_name}"
             # Use udt_name for more accuracy, use data_type if empty
             column_types[key] = udt_name if udt_name else data_type
@@ -908,7 +916,8 @@ async def _process_dml_statements(
                     f"Column types for tables {tables}: {column_types}"
                 )
         except Exception as col_type_error:  # pylint: disable=broad-except
-            # If querying column types fails, log error but don't interrupt processing (backward compatibility)
+            # If querying column types fails, log error but don't interrupt
+            # processing (backward compatibility)
             span_context.add_error_event(
                 f"Failed to get column types: {str(col_type_error)}"
             )
@@ -1034,7 +1043,8 @@ async def _exec_dml_sql(
             insert_ids = dml_info["insert_ids"]
             params = dml_info.get("params", {})
 
-            # If there are parameters, use parameterized query, otherwise execute directly
+            # If there are parameters, use parameterized query,
+            # otherwise execute directly
             if params:
                 result = await parse_and_exec_sql(db, rewrite_dml, params)
             else:

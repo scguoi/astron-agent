@@ -56,7 +56,7 @@ def test_rewrite_dml_with_uid_and_limit() -> None:
 
     assert "WHERE (age > 18) AND users.uid IN (:param_0, :param_1)" in rewritten_sql
     assert "LIMIT 100" in rewritten_sql
-    assert insert_ids == []
+    assert not insert_ids
     assert isinstance(params_dict, dict)
     assert params_dict["param_0"] == "user456"
     assert params_dict["param_1"] == "app123:user456"
@@ -82,7 +82,7 @@ def test_rewrite_dml_with_datetime_string() -> None:
     assert "WHERE (create_time = :" in rewritten_sql
     assert "AND users.uid IN (:" in rewritten_sql
     assert "LIMIT 100" in rewritten_sql
-    assert insert_ids == []
+    assert not insert_ids
     assert isinstance(params_dict, dict)
     # Check that datetime string was converted to datetime object
     # Find the datetime parameter by checking all values
@@ -343,7 +343,10 @@ async def test_exec_dml_success() -> None:
                         mock_validate.return_value = None
 
                         with patch(
-                            "memory.database.api.v1.exec_dml.rewrite_dml_with_uid_and_limit"
+                            (
+                                "memory.database.api.v1.exec_dml."
+                                "rewrite_dml_with_uid_and_limit"
+                            )
                         ) as mock_rewrite:
                             mock_rewrite.return_value = (
                                 "SELECT name FROM users WHERE age > 18 "
@@ -363,10 +366,16 @@ async def test_exec_dml_success() -> None:
                                 mock_exec_sql.return_value = select_result
 
                                 with patch(
-                                    "memory.database.api.v1.exec_dml.get_otlp_metric_service"
+                                    (
+                                        "memory.database.api.v1.exec_dml."
+                                        "get_otlp_metric_service"
+                                    )
                                 ) as mock_metric_service_func:
                                     with patch(
-                                        "memory.database.api.v1.exec_dml.get_otlp_span_service"
+                                        (
+                                            "memory.database.api.v1.exec_dml."
+                                            "get_otlp_span_service"
+                                        )
                                     ) as mock_span_service_func:
                                         # Mock meter instance
                                         mock_meter_instance = MagicMock()
@@ -386,7 +395,7 @@ async def test_exec_dml_success() -> None:
 
                                         # Mock span service and instance
                                         mock_span_instance = MagicMock()
-                                        mock_span_instance.start.return_value.__enter__.return_value = (
+                                        mock_span_instance.start.return_value.__enter__.return_value = (  # noqa: E501
                                             fake_span_context
                                         )
                                         mock_span_service = MagicMock()
@@ -470,7 +479,7 @@ def test_collect_functions_names() -> None:
     dml_no_func = "SELECT name, age FROM users"
     parsed_no_func = parse_one(dml_no_func)
     func_names_empty = _collect_functions_names(parsed_no_func)
-    assert func_names_empty == []
+    assert not func_names_empty
 
 
 def test_validate_comparison_nodes_valid() -> None:
@@ -488,7 +497,8 @@ def test_validate_comparison_nodes_valid() -> None:
 def test_validate_comparison_nodes_invalid() -> None:
     """Test comparison node validation with invalid nodes."""
     # Create a parsed SQL with potentially invalid expression
-    # Note: This is a simplified test - actual invalid expressions may be harder to construct
+    # Note: This is a simplified test - actual invalid expressions may be
+    # harder to construct
     dml = "SELECT * FROM users WHERE age > 18"
     parsed = parse_one(dml)
     span_context = MagicMock()
@@ -604,8 +614,12 @@ async def test_validate_dml_legality_reserved_keyword_in_insert() -> None:
     result = await _validate_dml_legality(dml, uid, span_context)
     assert result is not None
     body = json.loads(result.body)
-    # Reserved keyword may be rejected by parser (SQLParseError) or validation (DMLNotAllowed)
-    assert body["code"] in (CodeEnum.SQLParseError.code, CodeEnum.DMLNotAllowed.code)
+    # Reserved keyword may be rejected by parser (SQLParseError) or
+    # validation (DMLNotAllowed)
+    assert body["code"] in (
+        CodeEnum.SQLParseError.code,
+        CodeEnum.DMLNotAllowed.code,
+    )
 
 
 @pytest.mark.asyncio
@@ -734,7 +748,10 @@ async def test_process_dml_statements_success() -> None:
                 "memory.database.api.v1.exec_dml.rewrite_dml_with_uid_and_limit"
             ) as mock_rewrite:
                 mock_rewrite.return_value = (
-                    "SELECT * FROM users WHERE users.uid IN ('u1', 'app123:u1') LIMIT 100",
+                    (
+                        "SELECT * FROM users WHERE users.uid IN "
+                        "('u1', 'app123:u1') LIMIT 100"
+                    ),
                     [],
                     {},
                 )
@@ -807,6 +824,8 @@ def test_extract_table_ref() -> None:
 
     # Test with object that has 'this' attribute
     class MockObj:
+        """Mock object for testing table reference extraction."""
+
         def __init__(self) -> None:
             self.this = "test_table"
 
@@ -814,6 +833,8 @@ def test_extract_table_ref() -> None:
 
     # Test with object that has 'name' attribute
     class MockObj2:
+        """Mock object for testing table reference extraction."""
+
         def __init__(self) -> None:
             self.name = "test_table"
 
@@ -866,7 +887,10 @@ def test_build_table_alias_map() -> None:
 
 def test_rewrite_dml_with_multi_table_join() -> None:
     """Test SQL rewrite with multi-table JOIN query."""
-    test_dml = "SELECT * FROM users u JOIN orders o ON u.id = o.user_id WHERE u.name = 'John' AND o.status = 'active'"
+    test_dml = (
+        "SELECT * FROM users u JOIN orders o ON u.id = o.user_id "
+        "WHERE u.name = 'John' AND o.status = 'active'"
+    )
     app_id = "app123"
     uid = "user456"
     limit_num = 100
@@ -884,7 +908,7 @@ def test_rewrite_dml_with_multi_table_join() -> None:
     )
 
     assert "LIMIT 100" in rewritten_sql
-    assert insert_ids == []
+    assert not insert_ids
     assert isinstance(params_dict, dict)
     # Check that both literals are parameterized
     assert len([v for v in params_dict.values() if v == "John"]) == 1
@@ -908,7 +932,7 @@ def test_rewrite_dml_with_table_alias() -> None:
     )
 
     assert "LIMIT 100" in rewritten_sql
-    assert insert_ids == []
+    assert not insert_ids
     assert isinstance(params_dict, dict)
     # Check that literal is parameterized
     assert "John" in params_dict.values()
@@ -921,7 +945,7 @@ def test_rewrite_dml_update_with_table_alias() -> None:
     uid = "user456"
     column_types = {"users.name": "varchar"}
 
-    rewritten_sql, insert_ids, params_dict = rewrite_dml_with_uid_and_limit(
+    _, insert_ids, params_dict = rewrite_dml_with_uid_and_limit(
         dml=test_dml,
         app_id=app_id,
         uid=uid,
@@ -929,7 +953,7 @@ def test_rewrite_dml_update_with_table_alias() -> None:
         column_types=column_types,
     )
 
-    assert insert_ids == []
+    assert not insert_ids
     assert isinstance(params_dict, dict)
     # Check that literal is parameterized
     assert "John" in params_dict.values()
@@ -943,7 +967,7 @@ def test_process_comparison_node() -> None:
     parsed = parse_one("SELECT * FROM users WHERE name = 'John'")
     where_expr = parsed.args.get("where")
 
-    def get_table_name(col: Any) -> str:
+    def get_table_name(_col: Any) -> str:
         return "users"
 
     # Find comparison node
@@ -964,7 +988,7 @@ def test_map_where_literals_recursive() -> None:
     parsed = parse_one("SELECT * FROM users WHERE name = 'John' AND age > 18")
     where_expr = parsed.args.get("where")
 
-    def get_table_name(col: Any) -> str:
+    def get_table_name(_col: Any) -> str:
         return "users"
 
     _map_where_literals_recursive(where_expr, literal_column_map, get_table_name)
@@ -993,7 +1017,7 @@ def test_rewrite_dml_with_complex_where() -> None:
     )
 
     assert "LIMIT 100" in rewritten_sql
-    assert insert_ids == []
+    assert not insert_ids
     assert isinstance(params_dict, dict)
     # Check that literals are parameterized
     assert "John" in params_dict.values() or "Jane" in params_dict.values()
