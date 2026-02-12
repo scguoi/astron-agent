@@ -103,16 +103,20 @@ class RedisCache(BaseCacheService, Service):
                 "RedisCache only accepts values that can be pickled. "
             ) from exc
 
-    def set_extend(self, key: str, value: Any, expire_time=None, px=None, nx=False, xx=False, keepttl=False) -> None:
-        try:
-            if pickled := pickle.dumps(value):
-                result = self._client.set(key, pickled, ex=expire_time, px=px, nx=nx, xx=xx, keepttl=keepttl)
-                if not result:
-                    raise ValueError("RedisCache could not set the value.")
-        except TypeError as exc:
-            raise TypeError(
-                "RedisCache only accepts values that can be pickled. "
-            ) from exc
+    def setnx(self, key: str, value: Any, expire_time: int = 0) -> bool:
+        """
+        Add an item to the cache.
+
+        Args:
+            key: The key to set
+            value: The value to set
+            expire_time: Expiration time in seconds
+        Returns:
+            True if the key was set, False if the key already exists
+        """
+        result = self._client.set(key, value, ex=expire_time if expire_time != 0 else self.expiration_time, nx=True)
+
+        return bool(result)
 
     def hash_set_ex(self, name: str, key: str, value: Any, expire_time: int) -> None:
         try:
