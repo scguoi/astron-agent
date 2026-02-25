@@ -287,10 +287,9 @@ if __name__ == "__main__":
     # app = asyncio.run(create_app())
     initialize_extensions()
 
-    run_database_migration()
+    asyncio.run(_log_ready_after_delay())
 
-    if os.getenv("KONG_SERVICE_NAME", "") and os.getenv("KONG_ADMIN_API", ""):
-        asyncio.run(_log_ready_after_delay())
+    run_database_migration()
 
     uvicorn.run(
         app="main:create_app",
