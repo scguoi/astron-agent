@@ -19,6 +19,7 @@ from memory.database.domain.entity.views.http_resp import format_response
 from memory.database.exceptions.e import CustomException
 from memory.database.exceptions.error_code import CodeEnum
 from memory.database.repository.middleware.getters import get_session
+from sqlglot import exp
 from sqlglot.errors import ParseError
 from sqlglot.expressions import Alter, ColumnDef, Command, Create, Drop
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -34,6 +35,111 @@ ALLOWED_DDL_STATEMENTS = {
     "COMMENT",
     "RENAME",
 }
+
+PGSQL_INVALID_KEY = [
+    "all",
+    "analyse",
+    "analyze",
+    "and",
+    "any",
+    "array",
+    "as",
+    "asc",
+    "asymmetric",
+    "authorization",
+    "binary",
+    "both",
+    "case",
+    "cast",
+    "check",
+    "collate",
+    "collation",
+    "column",
+    "concurrently",
+    "constraint",
+    "create",
+    "cross",
+    "current_catalog",
+    "current_date",
+    "current_role",
+    "current_schema",
+    "current_time",
+    "current_timestamp",
+    "current_user",
+    "default",
+    "deferrable",
+    "desc",
+    "distinct",
+    "do",
+    "else",
+    "end",
+    "except",
+    "false",
+    "fetch",
+    "for",
+    "foreign",
+    "freeze",
+    "from",
+    "full",
+    "grant",
+    "group",
+    "having",
+    "ilike",
+    "in",
+    "initially",
+    "inner",
+    "intersect",
+    "into",
+    "is",
+    "isnull",
+    "join",
+    "lateral",
+    "leading",
+    "left",
+    "like",
+    "limit",
+    "localtime",
+    "localtimestamp",
+    "natural",
+    "not",
+    "notnull",
+    "null",
+    "offset",
+    "on",
+    "only",
+    "or",
+    "order",
+    "outer",
+    "overlaps",
+    "placing",
+    "primary",
+    "references",
+    "returning",
+    "right",
+    "select",
+    "session_user",
+    "similar",
+    "some",
+    "symmetric",
+    "table",
+    "tablesample",
+    "then",
+    "to",
+    "trailing",
+    "true",
+    "union",
+    "unique",
+    "user",
+    "using",
+    "variadic",
+    "verbose",
+    "when",
+    "where",
+    "window",
+    "with",
+    "current_database",
+    "system_user",
+]
 
 
 def is_ddl_allowed(sql: str, span_context: Span) -> bool:
@@ -134,6 +240,42 @@ def _extract_ddl_statement_info(parsed_ast: Any) -> Union[tuple[str, str], None]
     return None
 
 
+def _collect_functions_names(parsed: Any) -> list:
+    """
+    Collect function names from parsed SQL AST.
+    """
+    functions_to_validate = []
+    sqlglot_func_key_map = {
+        "currentuser": "current_user",
+        "sessionuser": "session_user",
+        "currentdate": "current_date",
+        "currenttime": "current_time",
+        # "currenttimestamp": "current_timestamp",
+        "currentschema": "current_schema",
+        "currentcatalog": "current_catalog",
+        "currentdatabase": "current_database",
+        "currentrole": "current_role",
+        "localtime": "localtime",
+        "localtimestamp": "localtimestamp",
+        "user": "user",
+        "systemuser": "system_user",
+    }
+
+    for node in parsed.walk():
+        if not isinstance(node, exp.Func):
+            continue
+
+        func_name = node.name
+        if not func_name:
+            key = getattr(node, "key", None) or type(node).__name__.lower()
+            func_name = sqlglot_func_key_map.get(key, "")
+
+        if func_name:
+            functions_to_validate.append(func_name)
+
+    return functions_to_validate
+
+
 def _collect_ddl_identifiers(parsed: Any) -> list:
     """
     Collect all identifiers (table names, column names) from DDL statements.
@@ -227,6 +369,21 @@ def _validate_name_pattern_ddl(
     return None
 
 
+def _validate_reserved_keywords(keys: list, span_context: Any) -> Any:
+    """Validate reserved keywords."""
+    for key_name in keys:
+        if key_name.lower() in PGSQL_INVALID_KEY:
+            span_context.add_error_event(
+                f"Key name '{key_name}' is a reserved keyword and is not allowed"
+            )
+            return format_response(
+                code=CodeEnum.DMLNotAllowed.code,
+                message=f"Key name '{key_name}' is a reserved keyword and is not allowed",
+                sid=span_context.sid,
+            )
+    return None
+
+
 async def _validate_ddl_legality(ddl: str, uid: str, span_context: Any) -> Any:
     """
     Validate DDL statement legality similar to DML validation logic.
@@ -249,14 +406,26 @@ async def _validate_ddl_legality(ddl: str, uid: str, span_context: Any) -> Any:
     try:
         parsed = sqlglot.parse_one(ddl, dialect="postgres")
 
+        # Collect table names and function names that need validation
+        function_names = _collect_functions_names(parsed)
+        # Validate function names
+        if function_names:
+            # Validate reserved function
+            error_result = _validate_reserved_keywords(function_names, span_context)
+            if error_result:
+                return error_result
+
         # Collect table names and column names that need validation
         column_names = _collect_ddl_identifiers(parsed)
-
         # Validate column names
         if column_names:
             error_result = _validate_name_pattern_ddl(
                 column_names, "Column name", uid, span_context
             )
+            if error_result:
+                return error_result
+            # Validate reserved column
+            error_result = _validate_reserved_keywords(column_names, span_context)
             if error_result:
                 return error_result
 
