@@ -34,11 +34,11 @@ config = context.config
 
 
 def get_database_url() -> str:
-    user = os.getenv("PGSQL_USER", "u_sparkdb")
-    password = os.getenv("PGSQL_PASSWORD", "QhLQq7!vn28hjjh5qU4*")
-    database = os.getenv("PGSQL_DATABASE", "xingchen_db_dev")
-    host = os.getenv("PGSQL_HOST", "aw0cuwj9msu8.pgsql.hf04.dbaas.private")
-    port = int(os.getenv("PGSQL_PORT", "3401"))
+    user = os.getenv("PGSQL_USER", "")
+    password = os.getenv("PGSQL_PASSWORD", "")
+    database = os.getenv("PGSQL_DATABASE", "")
+    host = os.getenv("PGSQL_HOST", "")
+    port = int(os.getenv("PGSQL_PORT", ""))
     # Use psycopg2 (sync) driver for Alembic migrations instead of asyncpg
     database_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
     return database_url
