@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 print = functools.partial(print, flush=True)  # pylint: disable=redefined-builtin
+os.environ["PYTHONWARNINGS"] = "ignore:pkg_resources is deprecated"
 
 
 def setup_python_path() -> None:

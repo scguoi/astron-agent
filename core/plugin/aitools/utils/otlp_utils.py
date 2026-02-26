@@ -190,7 +190,7 @@ def _kafka_watchdog_func() -> None:
 
                     new_proc = multiprocessing.Process(
                         target=_kafka_worker_process,
-                        args=(idx, global_kafka_queue, _worker_heartbeats),
+                        args=(idx, global_kafka_queue, _worker_heartbeats, stop_event),
                         daemon=True,
                         name=f"kafka_worker_{idx}",
                     )

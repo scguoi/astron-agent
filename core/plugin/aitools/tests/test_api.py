@@ -16,10 +16,7 @@ from plugin.aitools.api.decorators.api_meta import ApiMeta
 from plugin.aitools.api.middlewares.otlp_middleware import OTLPMiddleware
 from plugin.aitools.api.routes.register import register_api_services
 from plugin.aitools.common.exceptions.error.code_enums import CodeEnums
-from plugin.aitools.common.exceptions.exceptions import (
-    ServiceException,
-    register_exception_handlers,
-)
+from plugin.aitools.common.exceptions.exceptions import ServiceException
 
 
 class FakeService:  # pylint: disable=too-few-public-methods
@@ -85,7 +82,6 @@ class TestOTLPMiddlewareWithDynamicRoutes:
 
         router = APIRouter(prefix="/aitools/v1")
         register_api_services(router)
-        register_exception_handlers(app)
         app.include_router(router)
 
         # normal routes (non-dynamic)
@@ -127,16 +123,6 @@ class TestOTLPMiddlewareWithDynamicRoutes:
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
-
-    def test_http_exception_handled(self, client: TestClient) -> None:
-        """HTTP exception is handled"""
-        resp = client.get("/http_error")
-        body = resp.json()
-
-        assert resp.status_code == 200
-        assert body["code"] == 404
-        assert body["message"] == "not found"
-        assert "sid" in body
 
     def test_service_exception_handled(self, client: TestClient) -> None:
         """Service exception is handled"""

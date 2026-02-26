@@ -127,15 +127,13 @@ class WebSocketClient(InstrumentedClient):
         """Receive data from WebSocket server"""
         while self._running:
             try:
-                msg = self.recv_queue.get_nowait()
+                msg = await self.recv_queue.get()
                 if msg is None:
                     break
                 if isinstance(msg, BaseException):
                     raise msg
                 self.recv_data_list.append(msg)
                 yield msg
-            except asyncio.QueueEmpty:
-                await asyncio.sleep(0.01)
             except WebSocketClientException:
                 raise
             except Exception as e:
@@ -147,13 +145,11 @@ class WebSocketClient(InstrumentedClient):
         """Send loop"""
         try:
             while self._running:
-                data = self.send_queue.get_nowait()
+                data = await self.send_queue.get()
                 if data == "EOF":
                     break
                 await self.ws.send(data)
                 await asyncio.sleep(self.send_interval)
-        except asyncio.QueueEmpty:
-            await asyncio.sleep(0.01)
         except websockets.exceptions.ConnectionClosedOK as e:
             log.info(f"WebSocket closed normally: {e}")
         except websockets.exceptions.ConnectionClosedError as e:

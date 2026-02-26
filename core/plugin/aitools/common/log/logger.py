@@ -5,8 +5,9 @@ Logging module providing unified logging configuration and interfaces.
 import logging
 import os
 import sys
+import traceback
 from types import FrameType
-from typing import cast
+from typing import List, Optional, cast
 
 from loguru import logger
 
@@ -39,31 +40,85 @@ def init_uvicorn_logger() -> None:
         "fastapi",
     )
 
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.addHandler(InterceptHandler())
+
     # change handler for default uvicorn logger
-    logging.getLogger().handlers = [InterceptHandler()]
     for logger_name in logger_names:
         logging_logger = logging.getLogger(logger_name)
+        logging_logger.handlers.clear()
         logging_logger.handlers = [InterceptHandler()]
+        logging_logger.propagate = False
+
+
+def get_loguru_level(record: logging.LogRecord) -> str:
+    try:
+        return logger.level(record.levelname).name
+    except ValueError:
+        return str(record.levelno)
+
+
+def find_caller_depth() -> int:
+    frame, depth = logging.currentframe(), 2
+    while frame and frame.f_code.co_filename == logging.__file__:
+        frame = cast(FrameType, frame.f_back)
+        depth += 1
+    return depth
+
+
+def format_exception(exc_info: Optional[tuple]) -> Optional[str]:
+    if not exc_info:
+        return None
+
+    exc_type, exc_value, tb = exc_info
+    full_traceback = traceback.extract_tb(tb)
+    key_frames: List[traceback.FrameSummary] = []
+
+    for frame_summary in full_traceback:
+        filename = frame_summary.filename
+        if any(
+            lib in filename
+            for lib in [
+                "site-packages",
+                "uvicorn",
+                "starlette",
+                "fastapi",
+                "asyncio",
+                "logging.py",
+            ]
+        ):
+            continue
+        key_frames.append(frame_summary)
+
+    if not key_frames:
+        key_frames = full_traceback[-3:]
+
+    if key_frames:
+        lines = ["Traceback (most recent call last):"]
+        for frame_summary in key_frames:
+            lines.append(
+                f'  File "{frame_summary.filename}", line {frame_summary.lineno}, in {frame_summary.name}'
+            )
+            if frame_summary.line:
+                lines.append(f"    {frame_summary.line}")
+        lines.append(f"{exc_type.__name__}: {exc_value}")
+        return "\n".join(lines)
+
+    return f"{exc_type.__name__}: {exc_value}"
 
 
 class InterceptHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover
-        # Get corresponding Loguru level if it exists
-        try:
-            level = logger.level(record.levelname).name
-        except ValueError:
-            level = str(record.levelno)
+        level = get_loguru_level(record)
+        depth = find_caller_depth()
+        exc_text = format_exception(record.exc_info)
 
-        # Find caller from where originated the logged message
-        frame, depth = logging.currentframe(), 2
-        while frame.f_code.co_filename == logging.__file__:  # noqa: WPS609
-            frame = cast(FrameType, frame.f_back)
-            depth += 1
+        message = record.getMessage()
+        if exc_text:
+            message = f"{message}\n{exc_text}"
 
-        logger.opt(depth=depth, exception=record.exc_info).log(
-            level,
-            record.getMessage(),
-        )
+        logger.opt(depth=depth, exception=None).log(level, message)
 
 
 log = logger
