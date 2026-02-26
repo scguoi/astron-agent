@@ -67,7 +67,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         None: After successful initialization.
     """
     try:
-        await rep_initialize_extensions()
         # Execute before application startup
         yield
         # Execute after application startup
@@ -285,10 +284,13 @@ async def _log_ready_after_delay() -> None:
 if __name__ == "__main__":
     logger.debug(f"current platform {sys.platform}")
     # app = asyncio.run(create_app())
+    # common init
     initialize_extensions()
-
+    # postgresql init
+    asyncio.run(rep_initialize_extensions())
+    # kong init
     asyncio.run(_log_ready_after_delay())
-
+    # alembic init
     run_database_migration()
 
     uvicorn.run(
@@ -301,7 +303,7 @@ if __name__ == "__main__":
             else int(os.getenv("WORKERS", "1"))
         ),
         reload=False,
-        log_level="error",
+        log_level=os.getenv("LOG_LEVEL", "error").lower(),
         ws_ping_interval=None,
         ws_ping_timeout=None,
     )
