@@ -149,16 +149,16 @@ def aitools_app() -> FastAPI:
     main_app.include_router(router)
 
     sample_rate = float(os.getenv("SAMPLE_RATE", "1.0"))
-    exclude_paths_str = os.getenv("EXCLUDE_PATHS", None)
-    exclude_paths = None
-    if exclude_paths_str:
-        exclude_paths = exclude_paths_str.split(",")
+    include_paths_str = os.getenv("INCLUDE_PATHS", None)
+    include_paths = None
+    if include_paths_str:
+        include_paths = include_paths_str.split(",")
 
     main_app.add_middleware(
         OTLPMiddleware,
         enabled=os.getenv(OTLP_ENABLE_KEY, "0"),
         sample_rate=sample_rate,
-        exclude_paths=exclude_paths,
+        include_paths=include_paths,
     )
 
     # main_app = OTLPMiddleware(
