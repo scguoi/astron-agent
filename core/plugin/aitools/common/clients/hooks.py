@@ -78,8 +78,19 @@ class HttpSpanHooks:
                 {"Request URL": client.url, "Request method": client.method}
             )
 
-            kwargs_str = json.dumps(client.kwargs, indent=2, ensure_ascii=False)
-            add_info(span, "Request kwargs", kwargs_str)
+            valid_types = (str, bool, int, float)
+            safe_kwargs: Dict[str, Any] = {}
+            for k, v in client.kwargs.items():
+                if not isinstance(v, valid_types):
+                    safe_kwargs[k] = f"{type(v).__name__} object"
+                else:
+                    safe_kwargs[k] = v
+            add_info(
+                span,
+                "Request kwargs",
+                json.dumps(safe_kwargs, indent=2, ensure_ascii=False),
+            )
+
         except Exception as e:
             log.exception(f"Failed to set attributes for span in HttpSpanHooks: {e}")
 

@@ -3,6 +3,7 @@ Server startup module responsible for FastAPI application initialization and sta
 """
 
 import functools
+import json
 import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -16,8 +17,7 @@ from plugin.aitools.api.middlewares.otlp_middleware import OTLPMiddleware
 # from plugin.aitools.api.route import app
 from plugin.aitools.api.routes.register import register_api_services
 from plugin.aitools.common.clients.aiohttp_client import close_aiohttp_session
-from plugin.aitools.common.exceptions.exceptions import register_exception_handlers
-from plugin.aitools.common.log.logger import init_uvicorn_logger
+from plugin.aitools.common.log.logger import init_uvicorn_logger, log
 from plugin.aitools.const.const import OTLP_ENABLE_KEY, SERVICE_PORT_KEY
 from plugin.aitools.utils.otlp_utils import (
     init_kafka_send_workers,
@@ -30,6 +30,7 @@ print = functools.partial(print, flush=True)
 class AIToolsServer:
 
     def start(self) -> None:
+        init_uvicorn_logger()
         self.load_polaris()
         self.setup_server()
         self.start_uvicorn()
@@ -72,6 +73,7 @@ class AIToolsServer:
                 retry_interval=5,
                 set_env=True,
             )
+            log.info(f"Polaris config added: {json.dumps(_)}")
         except (ConnectionError, TimeoutError, ValueError) as e:
             print(
                 f"⚠️ Polaris configuration loading failed, "
@@ -91,23 +93,23 @@ class AIToolsServer:
         ]
         initialize_services(services=need_init_services)
 
-        # try:
-        #     import asyncio
+        try:
+            import asyncio
 
-        #     from plugin.aitools.extension.gateway.watchdog import setup_watchdog
+            from plugin.aitools.extension.gateway.watchdog import (
+                setup_watchdog,  # type: ignore[import]
+            )
 
-        #     asyncio.run(setup_watchdog())
-        # except (ModuleNotFoundError, ImportError):
-        #     pass
-        # except Exception as e:
-        #     print(f"[Service] ⚠️  gateway watchdog setup exception:{str(e)}")
+            asyncio.run(setup_watchdog())
+        except (ModuleNotFoundError, ImportError):
+            pass
+        except Exception as e:
+            print(f"[Service] ⚠️  gateway watchdog setup exception:{str(e)}")
 
     @staticmethod
     def start_uvicorn() -> None:
         if not (service_port := os.getenv(SERVICE_PORT_KEY)):
             raise ValueError(f"Missing {SERVICE_PORT_KEY} environment variable")
-
-        init_uvicorn_logger()
 
         print(f"🚀 Starting server on port {service_port}")
         uvicorn_config = uvicorn.Config(
@@ -143,6 +145,8 @@ def aitools_app() -> FastAPI:
     """
     main_app = FastAPI(lifespan=lifespan)
     router = APIRouter()
+    register_api_services(router)
+    main_app.include_router(router)
 
     sample_rate = float(os.getenv("SAMPLE_RATE", "1.0"))
     exclude_paths_str = os.getenv("EXCLUDE_PATHS", None)
@@ -156,10 +160,6 @@ def aitools_app() -> FastAPI:
         sample_rate=sample_rate,
         exclude_paths=exclude_paths,
     )
-
-    register_api_services(router)
-    register_exception_handlers(main_app)
-    main_app.include_router(router)
 
     # main_app = OTLPMiddleware(
     #     app=main_app,

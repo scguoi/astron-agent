@@ -5,6 +5,7 @@ ASE OCR LLM Service
 # pylint: disable=line-too-long,too-few-public-methods,too-many-instance-attributes,too-many-arguments
 import asyncio
 import base64
+import io
 import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
@@ -26,6 +27,23 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 DOCUMENT_PAGE_UNLIMITED = -1
+
+
+class LoguruWriter(io.TextIOBase):
+    """"""
+
+    def write(self, s: str) -> int:
+        s = s.strip()
+        if s:
+            log.warning(f"MuPDF: {s}")
+        return len(s)
+
+    def flush(self) -> None:
+        pass
+
+
+fitz.set_messages(stream=LoguruWriter())
+fitz.set_log(stream=LoguruWriter())
 
 
 class OCRLLM(BaseModel):
