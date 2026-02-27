@@ -64,21 +64,12 @@ class OTLPMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         enabled: str = "1",
         sample_rate: float = 1.0,
-        exclude_paths: list | None = None,
+        include_paths: list | None = None,
     ):
         super().__init__(app)
         self.enabled = enabled
         self.sample_rate = sample_rate
-        self.exclude_paths = exclude_paths or [
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/health",
-            "/metrics",
-            "/favicon.ico",
-            "/robots.txt",
-            "/monitor/runtime",
-        ]
+        self.include_paths = include_paths or ["/aitools/v1"]
 
         self.app_id = os.getenv("AI_APP_ID", "")
         self.uid = str(uuid.uuid1())
@@ -143,7 +134,11 @@ class OTLPMiddleware(BaseHTTPMiddleware):
             return True
 
         path = request.url.path
-        return any(path.startswith(exclude) for exclude in self.exclude_paths)
+
+        if self.include_paths:
+            return not any(path.startswith(include) for include in self.include_paths)
+
+        return False
 
     @contextmanager
     def _init_span(self, request: Request) -> Iterator[Span]:
