@@ -10,9 +10,7 @@ from loguru import logger
 from plugin.link.api.router import router
 from plugin.link.consts import const
 from plugin.link.domain.models.manager import init_data_base
-from plugin.link.service.community.tools.http.execution_server import (
-    init_kafka_send_workers,
-)
+from plugin.link.infra.kafka_telemetry import init_kafka_send_workers
 from plugin.link.utils.json_schemas.read_json_schemas import (
     load_create_tool_schema,
     load_http_run_schema,
