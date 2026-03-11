@@ -190,7 +190,7 @@ const useSelectPrompt = (): useSelectPromptType => {
       data.nodeParam.isThink = value?.isThink;
       data.nodeParam.maxLoopCount = currentTemplate?.maxLoopCount;
       if (value.llmSource === 0) {
-        data.nodeParam.source = 'openai';
+        data.nodeParam.source = value.provider || 'openai';
       } else {
         delete data.nodeParam.source;
       }

@@ -223,6 +223,32 @@ class OpenAIFrameProcessor(FrameProcessor):
         delta = llm_response["choices"][0].get("delta", {})
         if delta.get("content"):
             text["content"] = delta["content"]
+        if delta.get("reasoning_content"):
+            text["reasoning_content"] = delta["reasoning_content"]
+        return UnionFrame(code, status, text)
+
+
+class AnthropicFrameProcessor(FrameProcessor):
+    """
+    Frame processor for Anthropic API responses.
+
+    Anthropic stream frames are normalized into an OpenAI-like shape by the
+    provider implementation, so processing mirrors the OpenAI path while still
+    registering an explicit provider-specific processor.
+    """
+
+    def process_frame(self, llm_response: Dict[str, Any]) -> UnionFrame:
+        code = llm_response.get("code", 0)
+        status = SparkLLMStatus.RUNNING.value
+        text = {"content": "", "reasoning_content": ""}
+        is_finish: str = llm_response["choices"][0].get("finish_reason")
+        if is_finish == ChatStatus.FINISH_REASON.value:
+            status = SparkLLMStatus.END.value
+        delta = llm_response["choices"][0].get("delta", {})
+        if delta.get("content"):
+            text["content"] = delta["content"]
+        if delta.get("reasoning_content"):
+            text["reasoning_content"] = delta["reasoning_content"]
         return UnionFrame(code, status, text)
 
 
@@ -295,6 +321,7 @@ class FrameProcessorEnum(Enum):
 
     XINGHUO = ModelProviderEnum.XINGHUO.value
     OPENAI = ModelProviderEnum.OPENAI.value
+    ANTHROPIC = ModelProviderEnum.ANTHROPIC.value
     AGENT = NodeType.AGENT.value
     KNOWLEDGE_PRO = NodeType.KNOWLEDGE_PRO.value
     FLOW = NodeType.FLOW.value
@@ -312,6 +339,7 @@ class FrameProcessorFactory:
         FrameProcessorEnum.XINGHUO.value: AIPaaSFrameProcessor,
         FrameProcessorEnum.AGENT.value: AgentFrameProcessor,
         FrameProcessorEnum.OPENAI.value: OpenAIFrameProcessor,
+        FrameProcessorEnum.ANTHROPIC.value: AnthropicFrameProcessor,
         FrameProcessorEnum.KNOWLEDGE_PRO.value: KnowledgeProFrameProcessor,
         FrameProcessorEnum.FLOW.value: FlowFrameProcessor,
     }

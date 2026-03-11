@@ -287,7 +287,7 @@ const useModelSelect = (
     data.nodeParam.llmIdErrMsg = '';
 
     if (value.llmSource === 0) {
-      data.nodeParam.source = 'openai';
+      data.nodeParam.source = value.provider || 'openai';
     } else {
       Reflect.deleteProperty(data.nodeParam, 'source');
       Reflect.deleteProperty(data.nodeParam, 'extraParams');

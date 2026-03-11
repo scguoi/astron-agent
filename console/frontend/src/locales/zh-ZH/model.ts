@@ -137,6 +137,17 @@ const translation = {
   republishFailed: '重新发布失败',
   localUploadModel: '本地上传模型',
   noDocument: '暂无文档，待后续更新',
+  providerLabel: '模型供应商',
+  providerFilter: '供应商筛选',
+  allProviders: '全部供应商',
+  providerOpenAI: 'OpenAI 兼容',
+  providerAnthropic: 'Anthropic',
+  providerHintOpenAI: '使用 OpenAI 兼容接口地址，例如 /v1/chat/completions。',
+  providerHintAnthropic:
+    '使用 Anthropic Messages API 地址，并填写 Claude Sonnet / Opus 等模型名。',
+  anthropicModelPlaceholder: '例如 claude-3-7-sonnet-latest',
+  anthropicEndpointPlaceholder: '请输入 Anthropic API 地址',
+  addProviderModel: '添加{{provider}}模型',
 };
 
 export default translation;

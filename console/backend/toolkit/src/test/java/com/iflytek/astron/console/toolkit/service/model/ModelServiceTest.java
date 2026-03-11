@@ -332,6 +332,38 @@ class ModelServiceTest {
         assertEquals(9L, vo.getModelId());
     }
 
+    @Test
+    void testGetDetail_customModel_defaultsProviderToOpenAi() {
+        Model model = new Model();
+        model.setId(12L);
+        model.setUid("u1");
+        model.setName("legacy-custom");
+        model.setType(1);
+        model.setApiKey("sk-12345678");
+        model.setDomain("legacy-domain");
+        model.setConfig("[]");
+        model.setDesc("desc");
+        model.setImageUrl("icon");
+        model.setCreateTime(new Date());
+        model.setUpdateTime(new Date());
+        when(mapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(model);
+        when(modelCategoryService.getTree(12L)).thenReturn(Collections.emptyList());
+        when(s3UtilClient.getS3Prefix()).thenReturn("s3://x");
+
+        try (MockedStatic<com.iflytek.astron.console.toolkit.handler.UserInfoManagerHandler> user =
+                mockStatic(com.iflytek.astron.console.toolkit.handler.UserInfoManagerHandler.class)) {
+            com.iflytek.astron.console.commons.entity.user.UserInfo userInfo =
+                    new com.iflytek.astron.console.commons.entity.user.UserInfo();
+            userInfo.setUsername("tester");
+            user.when(com.iflytek.astron.console.toolkit.handler.UserInfoManagerHandler::get)
+                    .thenReturn(userInfo);
+
+            ApiResult ret = modelService.getDetail(0, 12L, null);
+            LLMInfoVo vo = (LLMInfoVo) ret.data();
+            assertEquals("openai", vo.getProvider());
+        }
+    }
+
     /**
      * Test {@link ModelService#localModelList()} to verify delegation to the handler.
      *
@@ -500,6 +532,61 @@ class ModelServiceTest {
         }
     }
 
+    @Test
+    void testValidateModel_anthropic_success() {
+        ModelValidationRequest req = new ModelValidationRequest();
+        req.setId(103L);
+        req.setApiKeyMasked(false);
+        req.setEndpoint("https://api.anthropic.com");
+        req.setDomain("claude-3-7-sonnet-20250219");
+        req.setModelName("claude");
+        req.setUid("u1");
+        req.setProvider("anthropic");
+        req.setTag(Collections.emptyList());
+        req.setConfig(Collections.emptyList());
+
+        Model dbModel = new Model();
+        dbModel.setId(103L);
+        dbModel.setUid("u1");
+        dbModel.setApiKey("ANTHROPIC_KEY");
+        dbModel.setIsDeleted(false);
+        dbModel.setDomain("old-domain");
+        dbModel.setUrl("https://old-url");
+        doReturn(dbModel).when(modelService).getById(103L);
+        doReturn(dbModel).doReturn(null).when(modelService).getOne(any(LambdaQueryWrapper.class));
+        when(configInfoMapper.getListByCategory("NETWORK_SEGMENT_BLACK_LIST"))
+                .thenReturn(Collections.emptyList());
+        when(mapper.updateById(any(Model.class))).thenReturn(1);
+        doNothing().when(modelCategoryService).saveAll(any(ModelCategoryReq.class));
+
+        String okResp = """
+                {"id":"msg_1","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":1,"output_tokens":1}}
+                """;
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(new ResponseEntity<>(okResp, HttpStatus.OK));
+
+        String result = modelService.validateModel(req);
+
+        assertEquals("Model validation passed", result);
+        ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<HttpEntity<Map<String, Object>>> entityCaptor =
+                ArgumentCaptor.forClass((Class) HttpEntity.class);
+        verify(restTemplate).exchange(
+                urlCaptor.capture(),
+                eq(HttpMethod.POST),
+                entityCaptor.capture(),
+                eq(String.class));
+        assertEquals("https://api.anthropic.com/v1/messages", urlCaptor.getValue());
+        assertEquals("ANTHROPIC_KEY", entityCaptor.getValue().getHeaders().getFirst("x-api-key"));
+        assertEquals("2023-06-01", entityCaptor.getValue().getHeaders().getFirst("anthropic-version"));
+        assertNull(entityCaptor.getValue().getHeaders().getFirst("Authorization"));
+
+        ArgumentCaptor<Model> modelCaptor = ArgumentCaptor.forClass(Model.class);
+        verify(mapper).updateById(modelCaptor.capture());
+        assertEquals("anthropic", modelCaptor.getValue().getProvider());
+    }
+
     /**
      * Test {@link ModelService#validateModel(ModelValidationRequest)} when endpoint URL contains a
      * query string, which should be rejected.
@@ -568,6 +655,7 @@ class ModelServiceTest {
         m2.setUid("u1");
         m2.setName("self2");
         m2.setDomain("d2");
+        m2.setType(1);
         m2.setCreateTime(new Date(2500));
         m2.setIsDeleted(false);
         when(mapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(Arrays.asList(m1, m2));
@@ -586,6 +674,7 @@ class ModelServiceTest {
         assertEquals(3, page.getRecords().size()); // total 4, page size 3
         // Sorted by createTime desc
         assertEquals(Long.valueOf(2L), page.getRecords().get(0).getId());
+        assertEquals("openai", page.getRecords().get(0).getProvider());
     }
 
     /**

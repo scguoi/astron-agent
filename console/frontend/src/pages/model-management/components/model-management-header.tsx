@@ -5,7 +5,7 @@ import { CloseOutlined } from '@ant-design/icons';
 import RetractableInput from '@/components/ui/global/retract-table-input';
 import { Select } from 'antd';
 import { SpaceButton } from '@/components/button-group';
-import { ModelInfo } from '@/types/model';
+import { ModelInfo, ModelProviderType } from '@/types/model';
 import ArrowDownIconWhite from '@/assets/svgs/arrow-down-white.svg';
 import { useModelContext } from '../context/model-context';
 
@@ -17,6 +17,8 @@ interface ModelManagementHeaderProps {
   setSearchInput?: (value: string) => void;
   filterType?: number;
   setFilterType?: (val: number) => void;
+  providerFilter?: string;
+  setProviderFilter?: (val: string) => void;
   setShowShelfOnly: (val: boolean) => void;
 }
 
@@ -28,6 +30,8 @@ const ModelManagementHeader: React.FC<ModelManagementHeaderProps> = ({
   setSearchInput,
   filterType = 0,
   setFilterType,
+  providerFilter = '',
+  setProviderFilter,
   setShowShelfOnly,
 }) => {
   const { t } = useTranslation();
@@ -55,6 +59,10 @@ const ModelManagementHeader: React.FC<ModelManagementHeaderProps> = ({
 
   const handleTypeChange = (val: number): void => {
     setFilterType?.(val);
+  };
+
+  const handleProviderChange = (val?: string): void => {
+    setProviderFilter?.(val || '');
   };
 
   const handleClose = (): void => {
@@ -138,18 +146,39 @@ const ModelManagementHeader: React.FC<ModelManagementHeaderProps> = ({
           {/* 右侧控件 */}
           <div className="ml-auto flex items-center gap-2">
             {activeTab === 'personalModel' && (
-              <Select
-                className="ant-select-UI"
-                placeholder={t('model.pleaseSelect')}
-                value={filterType}
-                style={{ width: 120 }}
-                options={[
-                  { label: t('model.all'), value: 0 },
-                  { label: t('model.thirdPartyModel'), value: 1 },
-                  { label: t('model.localModel'), value: 2 },
-                ]}
-                onChange={handleTypeChange}
-              />
+              <>
+                <Select
+                  className="ant-select-UI"
+                  placeholder={t('model.pleaseSelect')}
+                  value={filterType}
+                  style={{ width: 120 }}
+                  options={[
+                    { label: t('model.all'), value: 0 },
+                    { label: t('model.thirdPartyModel'), value: 1 },
+                    { label: t('model.localModel'), value: 2 },
+                  ]}
+                  onChange={handleTypeChange}
+                />
+                <Select
+                  className="ant-select-UI"
+                  placeholder={t('model.providerFilter')}
+                  value={providerFilter}
+                  allowClear
+                  style={{ width: 150 }}
+                  options={[
+                    { label: t('model.allProviders'), value: '' },
+                    {
+                      label: t('model.providerOpenAI'),
+                      value: ModelProviderType.OPENAI,
+                    },
+                    {
+                      label: t('model.providerAnthropic'),
+                      value: ModelProviderType.ANTHROPIC,
+                    },
+                  ]}
+                  onChange={handleProviderChange}
+                />
+              </>
             )}
             <RetractableInput
               value={searchInput}

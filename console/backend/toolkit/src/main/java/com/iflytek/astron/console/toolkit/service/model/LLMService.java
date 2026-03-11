@@ -57,6 +57,7 @@ import java.util.*;
 @Slf4j
 @Service
 public class LLMService {
+    private static final String PROVIDER_OPENAI = "openai";
 
     @Resource
     ConfigInfoMapper configInfoMapper;
@@ -244,6 +245,7 @@ public class LLMService {
             llmInfoVo.setTag(JSONArray.parseArray(model.getTag(), String.class));
             llmInfoVo.setLlmSource(0);
             llmInfoVo.setDomain(model.getDomain());
+            llmInfoVo.setProvider(resolveProvider(model));
             JSONArray config = JSONArray.parseArray(model.getConfig());
             for (Object o : config) {
                 JSONObject obj = (JSONObject) o;
@@ -274,6 +276,20 @@ public class LLMService {
             return 1f / (float) Math.pow(10, intPrec);
         }
         return precision;
+    }
+
+    private String resolveProvider(Model model) {
+        if (model == null) {
+            return null;
+        }
+        if (Objects.equals(model.getType(), 1)) {
+            return StrUtil.isBlank(model.getProvider())
+                    ? PROVIDER_OPENAI
+                    : model.getProvider().trim().toLowerCase(Locale.ROOT);
+        }
+        return StrUtil.isBlank(model.getProvider())
+                ? null
+                : model.getProvider().trim().toLowerCase(Locale.ROOT);
     }
 
     /**
