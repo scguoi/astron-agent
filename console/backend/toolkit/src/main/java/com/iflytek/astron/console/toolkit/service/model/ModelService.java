@@ -104,6 +104,9 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
     private static final String CODE_NODE_SWITCH = "switch";
 
     private static final String CAT_IP_BLACKLIST = "NETWORK_SEGMENT_BLACK_LIST";
+    private static final String PROVIDER_OPENAI = "openai";
+    private static final String PROVIDER_ANTHROPIC = "anthropic";
+    private static final String ANTHROPIC_VERSION = "2023-06-01";
 
     private static final String CODE_XINGCHEN = "xingchen";
     private static final String NAME_MODEL_SQUARE = "model_square";
@@ -139,16 +142,19 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         }
 
         // 2) Construct/validate URL + request body/headers
-        final String url = buildModelApiUrlNew(request.getEndpoint());
-        final Map<String, Object> requestBody = buildValidationPayload(request.getDomain());
-        final HttpHeaders headers = buildAuthHeaders(decryptedApiKey);
+        final String provider = normalizeProvider(request.getProvider(), true);
+        final String url = buildModelApiUrlNew(request.getEndpoint(), provider);
+        final Map<String, Object> requestBody =
+                buildValidationPayload(request.getDomain(), provider);
+        final HttpHeaders headers = buildAuthHeaders(decryptedApiKey, provider);
 
         try {
             String responseBody = doPostModelApi(url, requestBody, headers);
-            if (isValidModelResponse(responseBody)) {
+            if (isValidModelResponse(responseBody, provider)) {
                 log.info("Model validation passed, domain={}, endpoint={}", request.getDomain(), url);
                 request.setApiKey(decryptedApiKey);
                 request.setEndpoint(url);
+                request.setProvider(provider);
                 saveOrUpdateModel(request);
                 return "Model validation passed";
             }
@@ -184,7 +190,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         }
     }
 
-    private Map<String, Object> buildValidationPayload(String modelDomain) {
+    private Map<String, Object> buildValidationPayload(String modelDomain, String provider) {
         Map<String, Object> message = new HashMap<>();
         message.put("role", "user");
         message.put("content", "Hello!");
@@ -192,14 +198,23 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         Map<String, Object> payload = new HashMap<>();
         payload.put("model", modelDomain);
         payload.put("messages", Collections.singletonList(message));
-        payload.put("stream", false);
+        if (PROVIDER_ANTHROPIC.equals(provider)) {
+            payload.put("max_tokens", 16);
+        } else {
+            payload.put("stream", false);
+        }
         return payload;
     }
 
-    private HttpHeaders buildAuthHeaders(String apiKey) {
+    private HttpHeaders buildAuthHeaders(String apiKey, String provider) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + apiKey);
+        if (PROVIDER_ANTHROPIC.equals(provider)) {
+            headers.set("x-api-key", apiKey);
+            headers.set("anthropic-version", ANTHROPIC_VERSION);
+        } else {
+            headers.set("Authorization", "Bearer " + apiKey);
+        }
         return headers;
     }
 
@@ -210,7 +225,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
      * Rules: only http/https; remove userInfo; prohibit query/fragment; complete openai compatible
      * path; dual validation for entry and final URL.
      */
-    private String buildModelApiUrlNew(String baseUrl) {
+    private String buildModelApiUrlNew(String baseUrl, String provider) {
         try {
             // Read IP blacklist from database
             List<ConfigInfo> list = configInfoMapper.getListByCategory(CAT_IP_BLACKLIST);
@@ -252,14 +267,26 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
             String path = Optional.ofNullable(normalized.getPath()).orElse("");
             String cleanedPath = path.replaceAll("/+$", "");
             String finalPath;
-            if (!cleanedPath.matches(".*/chat/completions/?$")) {
-                if (cleanedPath.matches(".*/v\\d+$")) {
-                    finalPath = cleanedPath + "/chat/completions";
+            if (PROVIDER_ANTHROPIC.equals(provider)) {
+                if (!cleanedPath.matches(".*/messages/?$")) {
+                    if (cleanedPath.matches(".*/v\\d+$")) {
+                        finalPath = cleanedPath + "/messages";
+                    } else {
+                        finalPath = cleanedPath + "/v1/messages";
+                    }
                 } else {
-                    finalPath = cleanedPath + "/v1/chat/completions";
+                    finalPath = cleanedPath;
                 }
             } else {
-                finalPath = cleanedPath;
+                if (!cleanedPath.matches(".*/chat/completions/?$")) {
+                    if (cleanedPath.matches(".*/v\\d+$")) {
+                        finalPath = cleanedPath + "/chat/completions";
+                    } else {
+                        finalPath = cleanedPath + "/v1/chat/completions";
+                    }
+                } else {
+                    finalPath = cleanedPath;
+                }
             }
 
             // SECURITY FIX: Validate path to prevent directory traversal
@@ -288,10 +315,13 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         return response.getBody();
     }
 
-    private boolean isValidModelResponse(String responseBody) throws Exception {
+    private boolean isValidModelResponse(String responseBody, String provider) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(responseBody);
         log.info("Model interface response: {}", root.toString());
+        if (PROVIDER_ANTHROPIC.equals(provider)) {
+            return root.has("content") && root.get("content").isArray() && root.has("usage");
+        }
         return root.has("choices") && root.get("choices").isArray() && root.has("usage");
     }
 
@@ -398,9 +428,27 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         model.setStatus(ModelStatusEnum.RUNNING.getCode());
         model.setApiKey(request.getApiKey());
         model.setColor(request.getColor());
+        model.setProvider(normalizeProvider(request.getProvider(), true));
         model.setConfig(
                 Optional.ofNullable(request.getConfig()).map(JSON::toJSONString).orElse(null));
         model.setUpdateTime(new Date());
+    }
+
+    private static String normalizeProvider(String provider, boolean fallbackOpenAi) {
+        if (StringUtils.isBlank(provider)) {
+            return fallbackOpenAi ? PROVIDER_OPENAI : null;
+        }
+        return provider.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String resolveProvider(Model model) {
+        if (model == null) {
+            return null;
+        }
+        if (Objects.equals(model.getType(), 1)) {
+            return normalizeProvider(model.getProvider(), true);
+        }
+        return normalizeProvider(model.getProvider(), false);
     }
 
     private void insertTagInfo(ModelValidationRequest request, Model model) {
@@ -718,6 +766,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
             vo.setEnabled(model.getEnable());
             vo.setCategoryTree(modelCategoryService.getTree(model.getId()));
             vo.setType(model.getType());
+            vo.setProvider(resolveProvider(model));
             ownerSquareList.add(vo);
         }
     }
@@ -810,6 +859,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         vo.setDomain(model.getDomain());
         vo.setModelId(model.getId());
         vo.setDesc(model.getDesc());
+        vo.setProvider(resolveProvider(model));
         vo.setCategoryTree(modelCategoryService.getTree(modelId));
         vo.setModelType(model.getSource());
         vo.setIcon(model.getImageUrl());
@@ -1300,6 +1350,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         model.setType(2);
         model.setDomain(dto.getDomain());
         model.setColor(dto.getColor());
+        model.setProvider(null);
         model.setUpdateTime(new Date());
         model.setRemark(serviceId);
         model.setModelPath(dto.getModelPath());

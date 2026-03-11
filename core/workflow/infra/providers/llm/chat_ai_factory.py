@@ -8,6 +8,9 @@ It supports multiple AI providers including Xinghuo (Spark) and OpenAI.
 from typing import Any
 
 from workflow.consts.engine.model_provider import ModelProviderEnum
+from workflow.infra.providers.llm.anthropic.anthropic_chat_llm import (
+    AnthropicChatAI,
+)
 from workflow.infra.providers.llm.iflytek_spark.spark_chat_llm import SparkChatAi
 from workflow.infra.providers.llm.openai.openai_chat_llm import OpenAIChatAI
 
@@ -22,7 +25,9 @@ class ChatAIFactory:
     """
 
     @staticmethod
-    def get_chat_ai(model_source: str, **kwargs: Any) -> OpenAIChatAI | SparkChatAi:
+    def get_chat_ai(
+        model_source: str, **kwargs: Any
+    ) -> OpenAIChatAI | SparkChatAi | AnthropicChatAI:
         """
         Create and return a chat AI instance based on the specified model source.
 
@@ -37,5 +42,7 @@ class ChatAIFactory:
             return SparkChatAi(**kwargs)
         elif model_source == ModelProviderEnum.OPENAI.value:
             return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.ANTHROPIC.value:
+            return AnthropicChatAI(**kwargs)
         else:
             raise ValueError(f"Unsupported model source: {model_source}")

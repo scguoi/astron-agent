@@ -141,6 +141,18 @@ const translation = {
   republishFailed: 'Republish Failed',
   localUploadModel: 'Local Upload Model',
   noDocument: 'No document, coming soon',
+  providerLabel: 'Provider',
+  providerFilter: 'Provider',
+  allProviders: 'All Providers',
+  providerOpenAI: 'OpenAI Compatible',
+  providerAnthropic: 'Anthropic',
+  providerHintOpenAI:
+    'Use an OpenAI-compatible endpoint such as /v1/chat/completions.',
+  providerHintAnthropic:
+    'Use an Anthropic Messages API endpoint and a Claude model such as Sonnet or Opus.',
+  anthropicModelPlaceholder: 'e.g. claude-3-7-sonnet-latest',
+  anthropicEndpointPlaceholder: 'Please enter the Anthropic API endpoint',
+  addProviderModel: 'Add {{provider}} Model',
 };
 
 export default translation;

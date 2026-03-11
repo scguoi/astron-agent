@@ -42,11 +42,17 @@ import {
   LocalModelFile,
   LocalModelParams,
   ModelCreateType,
+  ModelProviderType,
 } from '@/types/model';
 import i18next from 'i18next';
 import down from '@/assets/svgs/down.svg';
 import up from '@/assets/svgs/up.svg';
 import { ResponseBusinessError } from '@/types/global';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  getModelProviderLabel,
+  normalizeModelProvider,
+} from '../utils/provider';
 
 const { TextArea } = Input;
 
@@ -152,6 +158,7 @@ const buildSubmitParams = (
     apiKey: encryptedApiKey,
     modelName: modelInfo?.modelName,
     description: modelInfo?.modelDesc,
+    provider: normalizeModelProvider(modelInfo?.provider),
     domain: modelInfo?.domain,
     tag: tags,
     icon: botIcon.value || '',
@@ -627,8 +634,46 @@ const ModelBasicForm = ({
   modelCreateType: ModelCreateType;
 }): JSX.Element => {
   const { t } = useTranslation();
+  const currentProvider = normalizeModelProvider(modelInfo?.provider);
+  const providerHint =
+    currentProvider === ModelProviderType.ANTHROPIC
+      ? t('model.providerHintAnthropic')
+      : t('model.providerHintOpenAI');
   return (
     <>
+      {modelCreateType === ModelCreateType.THIRD_PARTY && (
+        <div className="flex flex-col gap-2 font-normal text-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[#F74E43]">*</span> {t('model.providerLabel')}
+            </div>
+          </div>
+          <div className="rounded-xl bg-[#F6F9FF] p-1 inline-flex items-center gap-1 w-fit">
+            {[ModelProviderType.OPENAI, ModelProviderType.ANTHROPIC].map(
+              provider => (
+                <button
+                  key={provider}
+                  type="button"
+                  className={`min-w-[112px] h-9 px-4 rounded-lg text-sm transition-colors ${
+                    currentProvider === provider
+                      ? 'bg-white text-[#6356EA] shadow'
+                      : 'text-[#7f7f7f] hover:text-[#6356EA]'
+                  }`}
+                  onClick={() =>
+                    setModelInfo({
+                      ...modelInfo,
+                      provider,
+                    })
+                  }
+                >
+                  {getModelProviderLabel(provider)}
+                </button>
+              )
+            )}
+          </div>
+          <div className="text-xs leading-5 text-[#7F7F7F]">{providerHint}</div>
+        </div>
+      )}
       <div className="flex flex-col gap-2 font-normal text-sm">
         <div className="flex items-center justify-between">
           <div>
@@ -675,7 +720,11 @@ const ModelBasicForm = ({
             <Input
               maxLength={50}
               showCount
-              placeholder={t('model.enterModelFieldValue')}
+              placeholder={
+                currentProvider === ModelProviderType.ANTHROPIC
+                  ? t('model.anthropicModelPlaceholder')
+                  : t('model.enterModelFieldValue')
+              }
               className="global-input w-full"
               value={modelInfo?.domain}
               onChange={e =>
@@ -720,7 +769,11 @@ const ModelBasicForm = ({
             <Input
               maxLength={100}
               showCount
-              placeholder={t('model.interfaceAddressPlaceholder')}
+              placeholder={
+                currentProvider === ModelProviderType.ANTHROPIC
+                  ? t('model.anthropicEndpointPlaceholder')
+                  : t('model.interfaceAddressPlaceholder')
+              }
               className="global-input w-full"
               value={modelInfo?.interfaceAddress}
               onChange={e =>
@@ -955,6 +1008,7 @@ const useModelForm = (): {
     interfaceAddress: '',
     apiKEY: '',
     domain: '',
+    provider: DEFAULT_MODEL_PROVIDER,
   });
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1227,6 +1281,7 @@ const updateBasicInfo = (
     interfaceAddress: data?.url || '',
     apiKEY: data?.apiKey || '',
     domain: data?.domain || '',
+    provider: normalizeModelProvider(data?.provider),
   });
   formState.beforeModelKeys.current = data?.apiKey || '';
   avatarState.setBotIcon({ name: data?.address || '', value: data?.icon });
@@ -1288,6 +1343,7 @@ const useCreateModal = (
       interfaceAddress: '',
       apiKEY: '',
       domain: '',
+      provider: DEFAULT_MODEL_PROVIDER,
     });
     formState.setTags([]);
     formState.beforeModelKeys.current = '';
@@ -1490,7 +1546,11 @@ export function CreateModal({
       >
         <div className="flex items-center justify-between font-medium pr-6 mb-[16px]">
           <span className="font-semibold text-base text-[#3d3d3d]">
-            {t('model.addOpenAI')}
+            {modalState.modelCreateType === ModelCreateType.THIRD_PARTY
+              ? t('model.addProviderModel', {
+                  provider: getModelProviderLabel(modalState.modelInfo?.provider),
+                })
+              : t('model.selectLocalModel')}
           </span>
           <img
             src={close}

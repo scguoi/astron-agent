@@ -50,6 +50,11 @@ export enum ModelCreateType {
   LOCAL = 2, // 本地模型
 }
 
+export enum ModelProviderType {
+  OPENAI = 'openai',
+  ANTHROPIC = 'anthropic',
+}
+
 export enum LocalModelStatus {
   RUNNING = 1, // 运行中
   PENDING = 2, // 待发布
@@ -109,6 +114,7 @@ export type CategoryTreeResponse = CategoryNode[];
 export interface ModelInfo {
   id: number;
   name: string;
+  provider?: ModelProviderType | string | null;
   serviceId: string;
   serverId: string;
   domain: string;

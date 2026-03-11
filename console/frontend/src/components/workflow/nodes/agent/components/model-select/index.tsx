@@ -42,7 +42,7 @@ function index({ id, data }): React.ReactElement {
                 data.nodeParam.url = value.url;
                 data.nodeParam.patchId = value.patchId;
                 if (value.llmSource === 0) {
-                  data.nodeParam.source = 'openai';
+                  data.nodeParam.source = value.provider || 'openai';
                 } else {
                   Reflect.deleteProperty(data.nodeParam, 'source');
                 }
