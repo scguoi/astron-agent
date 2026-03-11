@@ -99,6 +99,7 @@ tmp/
 
 # Claude Code (user-specific)
 .claude/
+!console/.claude/
 
 # Serena MCP cache
 .serena/
