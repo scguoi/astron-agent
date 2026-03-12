@@ -1,16 +1,18 @@
 import React, { useRef } from 'react';
 import ModelManagementHeader from '../components/model-management-header';
 import CategoryAside from '../components/category-aside';
-import { CategoryAsideRef } from '@/types/model';
+import { CategoryAsideRef, ModelProviderType } from '@/types/model';
 import ModelCardList from '../components/model-card-list';
 import ModelModalComponents from '../components/model-modal-components';
 import { ModelProvider, useModelContext } from '../context/model-context';
 import { useModelInitializer } from '../hooks/use-model-initializer';
 import { useModelOperations } from '../hooks/use-model-operations';
 import { useModelFilters } from '../hooks/use-model-filters';
+import { useTranslation } from 'react-i18next';
 
 // 官方模型页面内容组件
 const OfficialModelContent: React.FC = () => {
+  const { t } = useTranslation();
   const { state } = useModelContext();
   const categoryRef = useRef<CategoryAsideRef>(null);
 
@@ -48,6 +50,26 @@ const OfficialModelContent: React.FC = () => {
               defaultContextLength={state.contextLength}
               setContextMaxLength={filters.handleSetContextMaxLength}
               loading={state.loading}
+              providerFilter={state.providerFilter}
+              providerOptions={[
+                {
+                  label: t('model.providerDeepSeek'),
+                  value: ModelProviderType.DEEPSEEK,
+                },
+                {
+                  label: t('model.providerAnthropic'),
+                  value: ModelProviderType.ANTHROPIC,
+                },
+                {
+                  label: t('model.providerGoogle'),
+                  value: ModelProviderType.GOOGLE,
+                },
+                {
+                  label: t('model.providerOpenAI'),
+                  value: ModelProviderType.OPENAI,
+                },
+              ]}
+              onProviderChange={filters.handleProviderFilterChange}
             />
           </aside>
 

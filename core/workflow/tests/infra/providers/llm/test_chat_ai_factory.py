@@ -8,6 +8,7 @@ from workflow.consts.engine.model_provider import ModelProviderEnum
 from workflow.infra.providers.llm.anthropic.anthropic_chat_llm import (
     AnthropicChatAI,
 )
+from workflow.infra.providers.llm.google.google_chat_llm import GoogleChatAI
 
 fake_spark_module = types.ModuleType(
     "workflow.infra.providers.llm.iflytek_spark.spark_chat_llm"
@@ -63,6 +64,18 @@ def test_chat_ai_factory_supports_anthropic() -> None:
     chat_ai = build_chat_ai(ModelProviderEnum.ANTHROPIC.value)
 
     assert isinstance(chat_ai, AnthropicChatAI)
+
+
+def test_chat_ai_factory_supports_google() -> None:
+    chat_ai = build_chat_ai(ModelProviderEnum.GOOGLE.value)
+
+    assert isinstance(chat_ai, GoogleChatAI)
+
+
+def test_chat_ai_factory_supports_deepseek() -> None:
+    chat_ai = build_chat_ai(ModelProviderEnum.DEEPSEEK.value)
+
+    assert isinstance(chat_ai, FakeOpenAIChatAI)
 
 
 def test_chat_ai_factory_rejects_unknown_provider() -> None:

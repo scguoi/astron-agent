@@ -16,7 +16,7 @@ export const useModelFilters = (): {
   handleContextLengthChange: (length?: number) => void;
   handleSearchInputChange: (value: string) => void;
   handleFilterTypeChange: (type: number) => void;
-  handleProviderFilterChange: (provider: string) => void;
+  handleProviderFilterChange: (provider?: string) => void;
   handleSetContextMaxLength: (length: number) => void;
 } => {
   const { state, actions } = useModelContext();
@@ -172,8 +172,8 @@ export const useModelFilters = (): {
   );
 
   const handleProviderFilterChange = useCallback(
-    (provider: string): void => {
-      actions.setProviderFilter(provider);
+    (provider?: string): void => {
+      actions.setProviderFilter(provider || '');
     },
     [actions]
   );

@@ -635,45 +635,8 @@ const ModelBasicForm = ({
 }): JSX.Element => {
   const { t } = useTranslation();
   const currentProvider = normalizeModelProvider(modelInfo?.provider);
-  const providerHint =
-    currentProvider === ModelProviderType.ANTHROPIC
-      ? t('model.providerHintAnthropic')
-      : t('model.providerHintOpenAI');
   return (
     <>
-      {modelCreateType === ModelCreateType.THIRD_PARTY && (
-        <div className="flex flex-col gap-2 font-normal text-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[#F74E43]">*</span> {t('model.providerLabel')}
-            </div>
-          </div>
-          <div className="rounded-xl bg-[#F6F9FF] p-1 inline-flex items-center gap-1 w-fit">
-            {[ModelProviderType.OPENAI, ModelProviderType.ANTHROPIC].map(
-              provider => (
-                <button
-                  key={provider}
-                  type="button"
-                  className={`min-w-[112px] h-9 px-4 rounded-lg text-sm transition-colors ${
-                    currentProvider === provider
-                      ? 'bg-white text-[#6356EA] shadow'
-                      : 'text-[#7f7f7f] hover:text-[#6356EA]'
-                  }`}
-                  onClick={() =>
-                    setModelInfo({
-                      ...modelInfo,
-                      provider,
-                    })
-                  }
-                >
-                  {getModelProviderLabel(provider)}
-                </button>
-              )
-            )}
-          </div>
-          <div className="text-xs leading-5 text-[#7F7F7F]">{providerHint}</div>
-        </div>
-      )}
       <div className="flex flex-col gap-2 font-normal text-sm">
         <div className="flex items-center justify-between">
           <div>
@@ -721,9 +684,7 @@ const ModelBasicForm = ({
               maxLength={50}
               showCount
               placeholder={
-                currentProvider === ModelProviderType.ANTHROPIC
-                  ? t('model.anthropicModelPlaceholder')
-                  : t('model.enterModelFieldValue')
+                t('model.enterModelFieldValue')
               }
               className="global-input w-full"
               value={modelInfo?.domain}
@@ -770,9 +731,7 @@ const ModelBasicForm = ({
               maxLength={100}
               showCount
               placeholder={
-                currentProvider === ModelProviderType.ANTHROPIC
-                  ? t('model.anthropicEndpointPlaceholder')
-                  : t('model.interfaceAddressPlaceholder')
+                t('model.interfaceAddressPlaceholder')
               }
               className="global-input w-full"
               value={modelInfo?.interfaceAddress}
@@ -1547,9 +1506,7 @@ export function CreateModal({
         <div className="flex items-center justify-between font-medium pr-6 mb-[16px]">
           <span className="font-semibold text-base text-[#3d3d3d]">
             {modalState.modelCreateType === ModelCreateType.THIRD_PARTY
-              ? t('model.addProviderModel', {
-                  provider: getModelProviderLabel(modalState.modelInfo?.provider),
-                })
+              ? t('model.addOpenAI')
               : t('model.selectLocalModel')}
           </span>
           <img

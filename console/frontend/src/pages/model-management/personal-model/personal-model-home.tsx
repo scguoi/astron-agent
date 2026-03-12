@@ -74,8 +74,6 @@ const PersonalModelContent: React.FC = () => {
             refreshModels={operations.handleQuickFilter}
             filterType={state.filterType}
             setFilterType={filters.handleFilterTypeChange}
-            providerFilter={state.providerFilter}
-            setProviderFilter={filters.handleProviderFilterChange}
             setShowShelfOnly={operations.handleCloseQuickFilter}
           />
         }

@@ -11,8 +11,14 @@ export function normalizeModelProvider(
 
 export function getModelProviderLabel(provider?: string | null): string {
   const normalizedProvider = normalizeModelProvider(provider);
+  if (normalizedProvider === ModelProviderType.DEEPSEEK) {
+    return i18next.t('model.providerDeepSeek');
+  }
   if (normalizedProvider === ModelProviderType.ANTHROPIC) {
     return i18next.t('model.providerAnthropic');
+  }
+  if (normalizedProvider === ModelProviderType.GOOGLE) {
+    return i18next.t('model.providerGoogle');
   }
 
   return i18next.t('model.providerOpenAI');

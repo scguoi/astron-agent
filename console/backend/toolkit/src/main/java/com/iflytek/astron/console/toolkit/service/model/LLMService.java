@@ -24,6 +24,7 @@ import com.iflytek.astron.console.toolkit.entity.biz.workflow.BizWorkflowData;
 import com.iflytek.astron.console.toolkit.entity.table.ConfigInfo;
 import com.iflytek.astron.console.toolkit.entity.table.model.Model;
 import com.iflytek.astron.console.toolkit.entity.table.model.ModelCommon;
+import com.iflytek.astron.console.toolkit.entity.vo.CategoryTreeVO;
 import com.iflytek.astron.console.toolkit.entity.vo.LLMInfoVo;
 import com.iflytek.astron.console.toolkit.handler.UserInfoManagerHandler;
 import com.iflytek.astron.console.toolkit.mapper.ConfigInfoMapper;
@@ -58,6 +59,9 @@ import java.util.*;
 @Service
 public class LLMService {
     private static final String PROVIDER_OPENAI = "openai";
+    private static final String PROVIDER_ANTHROPIC = "anthropic";
+    private static final String PROVIDER_GOOGLE = "google";
+    private static final String PROVIDER_DEEPSEEK = "deepseek";
 
     @Resource
     ConfigInfoMapper configInfoMapper;
@@ -370,6 +374,7 @@ public class LLMService {
                 }
 
                 vo.setUrl(modelCommon.getUrl());
+                vo.setProvider(resolveProvider(modelCommon));
                 // Temporary handling for gemma model
                 if (vo.getName().startsWith("gemma")) {
                     ConfigInfo gemmaUrl = configInfoMapper.getByCategoryAndCode("gemma", "url");
@@ -387,6 +392,73 @@ public class LLMService {
                 }
             }
         }
+    }
+
+    private String resolveProvider(ModelCommon modelCommon) {
+        if (modelCommon == null) {
+            return null;
+        }
+
+        String provider = resolveProviderFromCategoryTree(modelCommon.getCategoryTree());
+        if (StrUtil.isNotBlank(provider)) {
+            return provider;
+        }
+
+        String[] candidates = {
+                modelCommon.getDomain(),
+                modelCommon.getServiceId(),
+                modelCommon.getName(),
+                modelCommon.getUrl()
+        };
+        for (String candidate : candidates) {
+            String inferred = inferProvider(candidate);
+            if (StrUtil.isNotBlank(inferred)) {
+                return inferred;
+            }
+        }
+        return null;
+    }
+
+    private String resolveProviderFromCategoryTree(List<CategoryTreeVO> categoryTree) {
+        if (CollUtil.isEmpty(categoryTree)) {
+            return null;
+        }
+        for (CategoryTreeVO node : categoryTree) {
+            if (node == null) {
+                continue;
+            }
+            if (Objects.equals(node.getKey(), "modelProvider")) {
+                String provider = inferProvider(node.getName());
+                if (StrUtil.isNotBlank(provider)) {
+                    return provider;
+                }
+            }
+            String childProvider = resolveProviderFromCategoryTree(node.getChildren());
+            if (StrUtil.isNotBlank(childProvider)) {
+                return childProvider;
+            }
+        }
+        return null;
+    }
+
+    private String inferProvider(String rawValue) {
+        if (StrUtil.isBlank(rawValue)) {
+            return null;
+        }
+        String value = rawValue.trim().toLowerCase(Locale.ROOT);
+        if (value.contains("深度求索") || value.contains("deepseek")) {
+            return PROVIDER_DEEPSEEK;
+        }
+        if (value.contains("anthropic") || value.contains("claude")) {
+            return PROVIDER_ANTHROPIC;
+        }
+        if (value.contains("谷歌") || value.contains("google") || value.contains("gemini")) {
+            return PROVIDER_GOOGLE;
+        }
+        if (value.contains("openai") || value.contains("gpt-")) {
+            return PROVIDER_OPENAI;
+        }
+        return null;
     }
 
     private void personalModel(List<LLMInfoVo> sceneSquareList, List<String> sceneFilter) {

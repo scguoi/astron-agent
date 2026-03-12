@@ -90,6 +90,9 @@ const CategoryAside = forwardRef<CategoryAsideRef, CategoryAsideProps>(
       defaultContextLength,
       setContextMaxLength,
       loading = false,
+      providerFilter,
+      providerOptions = [],
+      onProviderChange,
     },
     ref
   ) => {
@@ -211,6 +214,32 @@ const CategoryAside = forwardRef<CategoryAsideRef, CategoryAsideProps>(
             )}
 
             {/* -------------- 模型状态-------------- */}
+            {providerOptions.length > 0 && (
+              <>
+                <span className="flex pl-7 pt-1" style={oneLevelNameStyle}>
+                  {t('model.providerFilter')}
+                </span>
+                {providerOptions.map(option => (
+                  <div
+                    key={option.value}
+                    className="flex items-center py-2 pl-8"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mr-2 h-4 w-4 rounded-[3px] bg-white border border-[#E4EAFF] accent-[#6356EA] focus:ring-2 focus:ring-blue-500/20"
+                      checked={providerFilter === option.value}
+                      onChange={(e): void => {
+                        onProviderChange?.(
+                          e.target.checked ? option.value : undefined
+                        );
+                      }}
+                    />
+                    <span style={childNameStyle}>{option.label}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
             <span className="flex pl-7 pt-1" style={oneLevelNameStyle}>
               {t('model.modelStatus')}
             </span>
