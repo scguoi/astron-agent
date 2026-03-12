@@ -93,6 +93,7 @@ const CategoryAside = forwardRef<CategoryAsideRef, CategoryAsideProps>(
       providerFilter,
       providerOptions = [],
       onProviderChange,
+      showContextLength = true,
     },
     ref
   ) => {
@@ -195,22 +196,26 @@ const CategoryAside = forwardRef<CategoryAsideRef, CategoryAsideProps>(
               })
             )}
 
-            <span className=" flex pl-7 pt-1" style={oneLevelNameStyle}>
-              {t('model.contextLength')}
-            </span>
-            {contextLengthLeaves.length > 0 && (
-              <div className="flex items-center py-2 px-3">
-                <span style={{ width: 15 }} />
-                <IntegerStep
-                  value={sliderValue}
-                  max={contextMax}
-                  onChange={(val): void => {
-                    setSliderValue(val);
-                    onContextLengthChange?.(val);
-                  }}
-                  defaultValue={0}
-                />
-              </div>
+            {showContextLength && (
+              <>
+                <span className=" flex pl-7 pt-1" style={oneLevelNameStyle}>
+                  {t('model.contextLength')}
+                </span>
+                {contextLengthLeaves.length > 0 && (
+                  <div className="flex items-center py-2 px-3">
+                    <span style={{ width: 15 }} />
+                    <IntegerStep
+                      value={sliderValue}
+                      max={contextMax}
+                      onChange={(val): void => {
+                        setSliderValue(val);
+                        onContextLengthChange?.(val);
+                      }}
+                      defaultValue={0}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {/* -------------- 模型状态-------------- */}

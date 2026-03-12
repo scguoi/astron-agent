@@ -178,6 +178,7 @@ export interface ModelFormData {
   interfaceAddress: string;
   apiKEY: string;
   domain: string;
+  provider?: ModelProviderType | string;
   currentTag?: string;
   tags?: string[];
   categorySystemIds?: number[];
@@ -223,6 +224,7 @@ export interface CategoryAsideProps {
   providerFilter?: string;
   providerOptions?: Array<{ label: string; value: string }>;
   onProviderChange?: (provider?: string) => void;
+  showContextLength?: boolean;
 }
 
 // 分类侧边栏组件引用

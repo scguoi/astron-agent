@@ -145,15 +145,27 @@ const translation = {
   providerAnthropic: 'Anthropic',
   providerGoogle: 'Google',
   providerHintOpenAI: '使用 OpenAI 兼容接口地址，例如 /v1/chat/completions。',
+  providerHintDeepSeek:
+    '使用 DeepSeek 官方兼容 OpenAI 的地址，并填写 deepseek-chat 或 deepseek-reasoner 等模型名。',
   providerHintAnthropic:
     '使用 Anthropic Messages API 地址，并填写 Claude Sonnet / Opus 等模型名。',
   providerHintGoogle:
     '使用 Gemini API 地址，并填写 gemini-2.5-flash 等模型名。',
+  deepseekModelPlaceholder: '例如 deepseek-chat 或 deepseek-reasoner',
+  deepseekEndpointPlaceholder: '请输入 DeepSeek API 地址',
   anthropicModelPlaceholder: '例如 claude-3-7-sonnet-latest',
   anthropicEndpointPlaceholder: '请输入 Anthropic API 地址',
   googleModelPlaceholder: '例如 gemini-2.5-flash',
   googleEndpointPlaceholder: '请输入 Gemini API 地址',
   addProviderModel: '添加{{provider}}模型',
+  officialProviderIntro: '官方供应商',
+  configureProvider: '去配置',
+  providerCardAnthropicDesc:
+    '接入 Claude Sonnet、Opus 等 Anthropic 模型，适合高质量对话与长文本生成。',
+  providerCardGoogleDesc:
+    '接入 Gemini 系列模型，适合多模态理解、轻量生成与快速响应场景。',
+  providerCardDeepSeekDesc:
+    '接入 DeepSeek-V3、DeepSeek-R1 等模型，适合通用生成、推理与工作流问答。',
 };
 
 export default translation;
