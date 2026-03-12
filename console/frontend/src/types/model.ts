@@ -53,6 +53,8 @@ export enum ModelCreateType {
 export enum ModelProviderType {
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
+  GOOGLE = 'google',
+  DEEPSEEK = 'deepseek',
 }
 
 export enum LocalModelStatus {
@@ -218,6 +220,9 @@ export interface CategoryAsideProps {
   defaultContextLength?: number;
   setContextMaxLength?: (val: number) => void;
   loading?: boolean;
+  providerFilter?: string;
+  providerOptions?: Array<{ label: string; value: string }>;
+  onProviderChange?: (provider?: string) => void;
 }
 
 // 分类侧边栏组件引用

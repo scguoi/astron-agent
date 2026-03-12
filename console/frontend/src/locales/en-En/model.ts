@@ -144,14 +144,20 @@ const translation = {
   providerLabel: 'Provider',
   providerFilter: 'Provider',
   allProviders: 'All Providers',
+  providerDeepSeek: 'DeepSeek',
   providerOpenAI: 'OpenAI Compatible',
   providerAnthropic: 'Anthropic',
+  providerGoogle: 'Google',
   providerHintOpenAI:
     'Use an OpenAI-compatible endpoint such as /v1/chat/completions.',
   providerHintAnthropic:
     'Use an Anthropic Messages API endpoint and a Claude model such as Sonnet or Opus.',
+  providerHintGoogle:
+    'Use a Gemini API endpoint and a Gemini model such as gemini-2.5-flash.',
   anthropicModelPlaceholder: 'e.g. claude-3-7-sonnet-latest',
   anthropicEndpointPlaceholder: 'Please enter the Anthropic API endpoint',
+  googleModelPlaceholder: 'e.g. gemini-2.5-flash',
+  googleEndpointPlaceholder: 'Please enter the Gemini API endpoint',
   addProviderModel: 'Add {{provider}} Model',
 };
 

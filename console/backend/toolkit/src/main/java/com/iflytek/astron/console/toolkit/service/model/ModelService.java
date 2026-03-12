@@ -63,6 +63,7 @@ import org.springframework.web.client.RestTemplate;
 import java.net.URL;
 import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -106,6 +107,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
     private static final String CAT_IP_BLACKLIST = "NETWORK_SEGMENT_BLACK_LIST";
     private static final String PROVIDER_OPENAI = "openai";
     private static final String PROVIDER_ANTHROPIC = "anthropic";
+    private static final String PROVIDER_GOOGLE = "google";
     private static final String ANTHROPIC_VERSION = "2023-06-01";
 
     private static final String CODE_XINGCHEN = "xingchen";
@@ -143,7 +145,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
 
         // 2) Construct/validate URL + request body/headers
         final String provider = normalizeProvider(request.getProvider(), true);
-        final String url = buildModelApiUrlNew(request.getEndpoint(), provider);
+        final String url = buildModelApiUrlNew(request.getEndpoint(), provider, request.getDomain());
         final Map<String, Object> requestBody =
                 buildValidationPayload(request.getDomain(), provider);
         final HttpHeaders headers = buildAuthHeaders(decryptedApiKey, provider);
@@ -191,6 +193,23 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
     }
 
     private Map<String, Object> buildValidationPayload(String modelDomain, String provider) {
+        if (PROVIDER_GOOGLE.equals(provider)) {
+            Map<String, Object> textPart = new HashMap<>();
+            textPart.put("text", "Hello!");
+
+            Map<String, Object> content = new HashMap<>();
+            content.put("role", "user");
+            content.put("parts", Collections.singletonList(textPart));
+
+            Map<String, Object> generationConfig = new HashMap<>();
+            generationConfig.put("maxOutputTokens", 16);
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("contents", Collections.singletonList(content));
+            payload.put("generationConfig", generationConfig);
+            return payload;
+        }
+
         Map<String, Object> message = new HashMap<>();
         message.put("role", "user");
         message.put("content", "Hello!");
@@ -212,6 +231,8 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         if (PROVIDER_ANTHROPIC.equals(provider)) {
             headers.set("x-api-key", apiKey);
             headers.set("anthropic-version", ANTHROPIC_VERSION);
+        } else if (PROVIDER_GOOGLE.equals(provider)) {
+            headers.set("x-goog-api-key", apiKey);
         } else {
             headers.set("Authorization", "Bearer " + apiKey);
         }
@@ -225,7 +246,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
      * Rules: only http/https; remove userInfo; prohibit query/fragment; complete openai compatible
      * path; dual validation for entry and final URL.
      */
-    private String buildModelApiUrlNew(String baseUrl, String provider) {
+    private String buildModelApiUrlNew(String baseUrl, String provider, String modelDomain) {
         try {
             // Read IP blacklist from database
             List<ConfigInfo> list = configInfoMapper.getListByCategory(CAT_IP_BLACKLIST);
@@ -267,6 +288,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
             String path = Optional.ofNullable(normalized.getPath()).orElse("");
             String cleanedPath = path.replaceAll("/+$", "");
             String finalPath;
+            String quotedModelDomain = Pattern.quote(Optional.ofNullable(modelDomain).orElse(""));
             if (PROVIDER_ANTHROPIC.equals(provider)) {
                 if (!cleanedPath.matches(".*/messages/?$")) {
                     if (cleanedPath.matches(".*/v\\d+$")) {
@@ -276,6 +298,21 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
                     }
                 } else {
                     finalPath = cleanedPath;
+                }
+            } else if (PROVIDER_GOOGLE.equals(provider)) {
+                if (StringUtils.isBlank(modelDomain)) {
+                    throw new BusinessException(ResponseEnum.PARAM_ERROR, "domain cannot be empty");
+                }
+                if (cleanedPath.contains(":generateContent")) {
+                    finalPath = cleanedPath;
+                } else if (cleanedPath.contains(":streamGenerateContent")) {
+                    finalPath = cleanedPath.replace(":streamGenerateContent", ":generateContent");
+                } else if (cleanedPath.matches(".*/v\\d+(beta)?/models/" + quotedModelDomain + "/?$")) {
+                    finalPath = cleanedPath + ":generateContent";
+                } else if (cleanedPath.matches(".*/v\\d+(beta)?/?$")) {
+                    finalPath = cleanedPath + "/models/" + modelDomain + ":generateContent";
+                } else {
+                    finalPath = appendPathSegment(cleanedPath, "/v1beta/models/" + modelDomain + ":generateContent");
                 }
             } else {
                 if (!cleanedPath.matches(".*/chat/completions/?$")) {
@@ -309,6 +346,16 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         }
     }
 
+    private String appendPathSegment(String basePath, String appendPath) {
+        if (StringUtils.isBlank(basePath)) {
+            return appendPath;
+        }
+        if (basePath.endsWith("/")) {
+            return basePath.substring(0, basePath.length() - 1) + appendPath;
+        }
+        return basePath + appendPath;
+    }
+
     private String doPostModelApi(String url, Map<String, Object> body, HttpHeaders headers) {
         ResponseEntity<String> response =
                 restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
@@ -321,6 +368,9 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         log.info("Model interface response: {}", root.toString());
         if (PROVIDER_ANTHROPIC.equals(provider)) {
             return root.has("content") && root.get("content").isArray() && root.has("usage");
+        }
+        if (PROVIDER_GOOGLE.equals(provider)) {
+            return root.has("candidates") && root.get("candidates").isArray();
         }
         return root.has("choices") && root.get("choices").isArray() && root.has("usage");
     }

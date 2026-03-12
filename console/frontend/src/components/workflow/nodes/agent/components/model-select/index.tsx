@@ -41,8 +41,10 @@ function index({ id, data }): React.ReactElement {
                 data.nodeParam.domain = value.domain;
                 data.nodeParam.url = value.url;
                 data.nodeParam.patchId = value.patchId;
-                if (value.llmSource === 0) {
-                  data.nodeParam.source = value.provider || 'openai';
+                if (value.provider) {
+                  data.nodeParam.source = value.provider;
+                } else if (value.llmSource === 0) {
+                  data.nodeParam.source = 'openai';
                 } else {
                   Reflect.deleteProperty(data.nodeParam, 'source');
                 }

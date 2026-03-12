@@ -323,6 +323,10 @@ class ModelServiceTest {
         mc.setUpdateTime(new Date());
         mc.setUserName("u");
         mc.setUrl("https://x");
+        CategoryTreeVO providerNode = new CategoryTreeVO();
+        providerNode.setKey("modelProvider");
+        providerNode.setName("openai");
+        mc.setCategoryTree(Collections.singletonList(providerNode));
         when(modelCommonService.getById(9L)).thenReturn(mc);
 
         ApiResult ret = modelService.getDetail(1, 9L, null);
@@ -330,6 +334,32 @@ class ModelServiceTest {
         LLMInfoVo vo = (LLMInfoVo) ret.data();
         assertEquals("gpt-4o", vo.getDomain());
         assertEquals(9L, vo.getModelId());
+    }
+
+    @Test
+    void testGetList_publicModel_resolvesDeepSeekProvider() {
+        ModelCommon deepSeek = new ModelCommon();
+        deepSeek.setId(21L);
+        deepSeek.setName("DeepSeek-V3");
+        deepSeek.setDomain("deepseek-chat");
+        deepSeek.setServiceId("deepseek-chat");
+        deepSeek.setUrl("https://api.deepseek.com/v1/chat/completions");
+        deepSeek.setUserAvatar("icon");
+        deepSeek.setCreateTime(new Date());
+        deepSeek.setUpdateTime(new Date());
+        CategoryTreeVO providerNode = new CategoryTreeVO();
+        providerNode.setKey("modelProvider");
+        providerNode.setName("深度求索");
+        deepSeek.setCategoryTree(Collections.singletonList(providerNode));
+
+        when(modelCommonService.getCommonModelList("u1", null))
+                .thenReturn(Collections.singletonList(deepSeek));
+
+        List<LLMInfoVo> publicModels = new ArrayList<>();
+        llmService.getDataFromModelShelfList(publicModels, Collections.emptyList(), "u1", null);
+
+        assertEquals(1, publicModels.size());
+        assertEquals("deepseek", publicModels.get(0).getProvider());
     }
 
     @Test

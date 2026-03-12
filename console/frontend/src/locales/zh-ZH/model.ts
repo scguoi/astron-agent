@@ -140,13 +140,19 @@ const translation = {
   providerLabel: '模型供应商',
   providerFilter: '供应商筛选',
   allProviders: '全部供应商',
+  providerDeepSeek: 'DeepSeek',
   providerOpenAI: 'OpenAI 兼容',
   providerAnthropic: 'Anthropic',
+  providerGoogle: 'Google',
   providerHintOpenAI: '使用 OpenAI 兼容接口地址，例如 /v1/chat/completions。',
   providerHintAnthropic:
     '使用 Anthropic Messages API 地址，并填写 Claude Sonnet / Opus 等模型名。',
+  providerHintGoogle:
+    '使用 Gemini API 地址，并填写 gemini-2.5-flash 等模型名。',
   anthropicModelPlaceholder: '例如 claude-3-7-sonnet-latest',
   anthropicEndpointPlaceholder: '请输入 Anthropic API 地址',
+  googleModelPlaceholder: '例如 gemini-2.5-flash',
+  googleEndpointPlaceholder: '请输入 Gemini API 地址',
   addProviderModel: '添加{{provider}}模型',
 };
 

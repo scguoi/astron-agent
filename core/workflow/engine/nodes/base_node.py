@@ -1179,7 +1179,9 @@ class BaseLLMNode(BaseNode):
             if payload_comp_history and payload_comp_history[0].content_type == "image":
                 if self.source in {
                     ModelProviderEnum.OPENAI.value,
+                    ModelProviderEnum.DEEPSEEK.value,
                     ModelProviderEnum.ANTHROPIC.value,
+                    ModelProviderEnum.GOOGLE.value,
                 }:
                     payload_comp_history.pop(0)
                 if self.source == ModelProviderEnum.XINGHUO.value:
@@ -1316,7 +1318,9 @@ class BaseLLMNode(BaseNode):
                 if (
                     self.source in {
                         ModelProviderEnum.OPENAI.value,
+                        ModelProviderEnum.DEEPSEEK.value,
                         ModelProviderEnum.ANTHROPIC.value,
+                        ModelProviderEnum.GOOGLE.value,
                     }
                     and status
                     and status
