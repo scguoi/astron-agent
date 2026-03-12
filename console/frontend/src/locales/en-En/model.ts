@@ -150,15 +150,27 @@ const translation = {
   providerGoogle: 'Google',
   providerHintOpenAI:
     'Use an OpenAI-compatible endpoint such as /v1/chat/completions.',
+  providerHintDeepSeek:
+    'Use the DeepSeek OpenAI-compatible endpoint and a model such as deepseek-chat or deepseek-reasoner.',
   providerHintAnthropic:
     'Use an Anthropic Messages API endpoint and a Claude model such as Sonnet or Opus.',
   providerHintGoogle:
     'Use a Gemini API endpoint and a Gemini model such as gemini-2.5-flash.',
+  deepseekModelPlaceholder: 'e.g. deepseek-chat or deepseek-reasoner',
+  deepseekEndpointPlaceholder: 'Please enter the DeepSeek API endpoint',
   anthropicModelPlaceholder: 'e.g. claude-3-7-sonnet-latest',
   anthropicEndpointPlaceholder: 'Please enter the Anthropic API endpoint',
   googleModelPlaceholder: 'e.g. gemini-2.5-flash',
   googleEndpointPlaceholder: 'Please enter the Gemini API endpoint',
   addProviderModel: 'Add {{provider}} Model',
+  officialProviderIntro: 'Official Providers',
+  configureProvider: 'Configure',
+  providerCardAnthropicDesc:
+    'Connect Claude Sonnet, Opus and other Anthropic models for high-quality chat and long-form generation.',
+  providerCardGoogleDesc:
+    'Connect Gemini models for multimodal understanding, lightweight generation and fast response scenarios.',
+  providerCardDeepSeekDesc:
+    'Connect DeepSeek-V3, DeepSeek-R1 and other models for general generation, reasoning and workflow Q&A.',
 };
 
 export default translation;

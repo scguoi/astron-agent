@@ -462,6 +462,10 @@ interface CreateModalProps {
   categoryTree?: CategoryNode[];
   setModels?: (models: ModelInfo[]) => void;
   filterType?: number;
+  initialProvider?: ModelProviderType | string;
+  lockProvider?: boolean;
+  hideLocalModel?: boolean;
+  showCategoryForm?: boolean;
 }
 
 // 删除模型弹窗属性
@@ -625,6 +629,7 @@ const ModelBasicForm = ({
   botColor,
   setShowModal,
   modelCreateType,
+  lockProvider = false,
 }: {
   modelInfo: ModelFormData;
   setModelInfo: (info: ModelFormData) => void;
@@ -632,11 +637,75 @@ const ModelBasicForm = ({
   botColor: string;
   setShowModal: (show: boolean) => void;
   modelCreateType: ModelCreateType;
+  lockProvider?: boolean;
 }): JSX.Element => {
   const { t } = useTranslation();
   const currentProvider = normalizeModelProvider(modelInfo?.provider);
+  const providerHint =
+    currentProvider === ModelProviderType.DEEPSEEK
+      ? t('model.providerHintDeepSeek')
+      : currentProvider === ModelProviderType.ANTHROPIC
+        ? t('model.providerHintAnthropic')
+        : currentProvider === ModelProviderType.GOOGLE
+          ? t('model.providerHintGoogle')
+          : t('model.providerHintOpenAI');
+  const modelPlaceholder =
+    currentProvider === ModelProviderType.DEEPSEEK
+      ? t('model.deepseekModelPlaceholder')
+      : currentProvider === ModelProviderType.ANTHROPIC
+        ? t('model.anthropicModelPlaceholder')
+        : currentProvider === ModelProviderType.GOOGLE
+          ? t('model.googleModelPlaceholder')
+          : t('model.enterModelFieldValue');
+  const endpointPlaceholder =
+    currentProvider === ModelProviderType.DEEPSEEK
+      ? t('model.deepseekEndpointPlaceholder')
+      : currentProvider === ModelProviderType.ANTHROPIC
+        ? t('model.anthropicEndpointPlaceholder')
+        : currentProvider === ModelProviderType.GOOGLE
+          ? t('model.googleEndpointPlaceholder')
+          : t('model.interfaceAddressPlaceholder');
   return (
     <>
+      {modelCreateType === ModelCreateType.THIRD_PARTY && (
+        <div className="flex flex-col gap-2 font-normal text-sm">
+          <div className="flex items-center justify-between">
+            <div>{t('model.providerLabel')}：</div>
+          </div>
+          <Select
+            value={currentProvider}
+            disabled={lockProvider}
+            style={{ width: '100%' }}
+            options={[
+              {
+                label: t('model.providerOpenAI'),
+                value: ModelProviderType.OPENAI,
+              },
+              {
+                label: t('model.providerAnthropic'),
+                value: ModelProviderType.ANTHROPIC,
+              },
+              {
+                label: t('model.providerGoogle'),
+                value: ModelProviderType.GOOGLE,
+              },
+              {
+                label: t('model.providerDeepSeek'),
+                value: ModelProviderType.DEEPSEEK,
+              },
+            ]}
+            onChange={value =>
+              setModelInfo({
+                ...modelInfo,
+                provider: value,
+              })
+            }
+          />
+          <div className="rounded-xl bg-[#F6F7FB] text-[#666] text-xs leading-5 px-3 py-2">
+            {providerHint}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-2 font-normal text-sm">
         <div className="flex items-center justify-between">
           <div>
@@ -683,9 +752,7 @@ const ModelBasicForm = ({
             <Input
               maxLength={50}
               showCount
-              placeholder={
-                t('model.enterModelFieldValue')
-              }
+              placeholder={modelPlaceholder}
               className="global-input w-full"
               value={modelInfo?.domain}
               onChange={e =>
@@ -730,9 +797,7 @@ const ModelBasicForm = ({
             <Input
               maxLength={100}
               showCount
-              placeholder={
-                t('model.interfaceAddressPlaceholder')
-              }
+              placeholder={endpointPlaceholder}
               className="global-input w-full"
               value={modelInfo?.interfaceAddress}
               onChange={e =>
@@ -1265,7 +1330,9 @@ const updateModelParams = (
 // 组合主 Hook
 const useCreateModal = (
   modelId?: string,
-  categoryTree?: CategoryNode[]
+  categoryTree?: CategoryNode[],
+  initialProvider?: ModelProviderType | string,
+  hideLocalModel = false
 ): ReturnType<typeof useModelForm> &
   ReturnType<typeof useModelAvatar> &
   ReturnType<typeof useModelParams> &
@@ -1283,7 +1350,7 @@ const useCreateModal = (
   const modalRef = useRef<HTMLDivElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [modelCreateType, setModelCreateType] = useState<ModelCreateType>(
-    ModelCreateType.THIRD_PARTY
+    hideLocalModel ? ModelCreateType.THIRD_PARTY : ModelCreateType.THIRD_PARTY
   );
   const [selectedLocalModel, setSelectedLocalModel] = useState<string>('');
   const [acceleratorCount, setAcceleratorCount] = useState<number>(1);
@@ -1302,7 +1369,7 @@ const useCreateModal = (
       interfaceAddress: '',
       apiKEY: '',
       domain: '',
-      provider: DEFAULT_MODEL_PROVIDER,
+      provider: normalizeModelProvider(initialProvider),
     });
     formState.setTags([]);
     formState.beforeModelKeys.current = '';
@@ -1346,7 +1413,7 @@ const useCreateModal = (
     // 重置本地模型相关状态
     setSelectedLocalModel('');
     setAcceleratorCount(1);
-  }, [formState, avatarState, paramsState, categoryState]);
+  }, [formState, avatarState, paramsState, categoryState, initialProvider]);
 
   // 切换模型类型并重置表单数据
   const handleModelCreateTypeChange = useCallback(
@@ -1361,6 +1428,15 @@ const useCreateModal = (
   );
 
   // 编辑模式数据加载
+  useEffect(() => {
+    if (!modelId) {
+      formState.setModelInfo({
+        ...formState.modelInfo,
+        provider: normalizeModelProvider(initialProvider),
+      });
+    }
+  }, [initialProvider, modelId]);
+
   useEffect(() => {
     if (modelId) {
       getModelDetail({
@@ -1438,10 +1514,26 @@ export function CreateModal({
   getModels,
   modelId,
   categoryTree,
+  initialProvider,
+  lockProvider = false,
+  hideLocalModel = false,
+  showCategoryForm = true,
 }: CreateModalProps): JSX.Element {
-  const modalState = useCreateModal(modelId, categoryTree);
+  const modalState = useCreateModal(
+    modelId,
+    categoryTree,
+    initialProvider,
+    hideLocalModel
+  );
   const { t } = useTranslation();
   const isEditMode = !!modelId;
+  const currentProvider = normalizeModelProvider(modalState.modelInfo?.provider);
+  const modalTitle =
+    modalState.modelCreateType === ModelCreateType.THIRD_PARTY
+      ? t('model.addProviderModel', {
+          provider: getModelProviderLabel(currentProvider),
+        })
+      : t('model.selectLocalModel');
   const handleOk = (): void => {
     if (modalState.modelCreateType === ModelCreateType.LOCAL) {
       handleLocalModelSubmit({
@@ -1505,9 +1597,7 @@ export function CreateModal({
       >
         <div className="flex items-center justify-between font-medium pr-6 mb-[16px]">
           <span className="font-semibold text-base text-[#3d3d3d]">
-            {modalState.modelCreateType === ModelCreateType.THIRD_PARTY
-              ? t('model.addOpenAI')
-              : t('model.selectLocalModel')}
+            {modalTitle}
           </span>
           <img
             src={close}
@@ -1524,34 +1614,36 @@ export function CreateModal({
           style={{ maxHeight: '60vh' }}
           ref={modalState.modalRef}
         >
-          <div className="flex">
-            <div className="flex items-center bg-[#f6f9ff] rounded-xl h-10 p-1 gap-1">
-              <div
-                className={`${
-                  modalState.modelCreateType === ModelCreateType.THIRD_PARTY
-                    ? 'bg-white text-[#6356EA] shadow'
-                    : 'text-[#7f7f7f] hover:text-[#6356EA]'
-                } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() =>
-                  modalState.setModelCreateType(ModelCreateType.THIRD_PARTY)
-                }
-              >
-                {t('model.addThirdPartyModel')}
-              </div>
-              <div
-                className={`${
-                  modalState.modelCreateType === ModelCreateType.LOCAL
-                    ? 'bg-white text-[#6356EA] shadow'
-                    : 'text-[#7f7f7f] hover:text-[#6356EA]'
-                } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() =>
-                  modalState.setModelCreateType(ModelCreateType.LOCAL)
-                }
-              >
-                {t('model.selectLocalModel')}
+          {!hideLocalModel && (
+            <div className="flex">
+              <div className="flex items-center bg-[#f6f9ff] rounded-xl h-10 p-1 gap-1">
+                <div
+                  className={`${
+                    modalState.modelCreateType === ModelCreateType.THIRD_PARTY
+                      ? 'bg-white text-[#6356EA] shadow'
+                      : 'text-[#7f7f7f] hover:text-[#6356EA]'
+                  } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                  onClick={() =>
+                    modalState.setModelCreateType(ModelCreateType.THIRD_PARTY)
+                  }
+                >
+                  {t('model.addThirdPartyModel')}
+                </div>
+                <div
+                  className={`${
+                    modalState.modelCreateType === ModelCreateType.LOCAL
+                      ? 'bg-white text-[#6356EA] shadow'
+                      : 'text-[#7f7f7f] hover:text-[#6356EA]'
+                  } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                  onClick={() =>
+                    modalState.setModelCreateType(ModelCreateType.LOCAL)
+                  }
+                >
+                  {t('model.selectLocalModel')}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {modalState.modelCreateType === ModelCreateType.LOCAL && (
             <SelectLocalModel
@@ -1566,27 +1658,30 @@ export function CreateModal({
             botColor={modalState.botColor}
             setShowModal={modalState.setShowModal}
             modelCreateType={modalState.modelCreateType}
+            lockProvider={lockProvider}
           />
-          <ModelCategoryForm
-            modelTypes={modalState.modelTypes}
-            handleTypeChange={modalState.handleTypeChange}
-            categoryOptions={modalState.categoryOptions}
-            hasOtherSelected={modalState.hasOtherSelected}
-            modelTypeOtherText={modalState.modelTypeOtherText}
-            setModelTypeOtherText={modalState.setModelTypeOtherText}
-            languageSystemId={modalState.languageSystemId}
-            setLanguageSystemId={modalState.setLanguageSystemId}
-            languageSupportOptions={modalState.languageSupportOptions}
-            contextLengthSystemId={modalState.contextLengthSystemId}
-            setContextLengthSystemId={modalState.setContextLengthSystemId}
-            contextLengthOptions={modalState.contextLengthOptions}
-            modelScenes={modalState.modelScenes}
-            handleSceneChange={modalState.handleSceneChange}
-            sceneOptions={modalState.sceneOptions}
-            hasSceneOtherSelected={modalState.hasSceneOtherSelected}
-            modelSceneOtherText={modalState.modelSceneOtherText}
-            setModelSceneOtherText={modalState.setModelSceneOtherText}
-          />
+          {showCategoryForm && (
+            <ModelCategoryForm
+              modelTypes={modalState.modelTypes}
+              handleTypeChange={modalState.handleTypeChange}
+              categoryOptions={modalState.categoryOptions}
+              hasOtherSelected={modalState.hasOtherSelected}
+              modelTypeOtherText={modalState.modelTypeOtherText}
+              setModelTypeOtherText={modalState.setModelTypeOtherText}
+              languageSystemId={modalState.languageSystemId}
+              setLanguageSystemId={modalState.setLanguageSystemId}
+              languageSupportOptions={modalState.languageSupportOptions}
+              contextLengthSystemId={modalState.contextLengthSystemId}
+              setContextLengthSystemId={modalState.setContextLengthSystemId}
+              contextLengthOptions={modalState.contextLengthOptions}
+              modelScenes={modalState.modelScenes}
+              handleSceneChange={modalState.handleSceneChange}
+              sceneOptions={modalState.sceneOptions}
+              hasSceneOtherSelected={modalState.hasSceneOtherSelected}
+              modelSceneOtherText={modalState.modelSceneOtherText}
+              setModelSceneOtherText={modalState.setModelSceneOtherText}
+            />
+          )}
           {modalState.modelCreateType === ModelCreateType.LOCAL && (
             <PerformanceConfiguration
               acceleratorCount={modalState.acceleratorCount}
