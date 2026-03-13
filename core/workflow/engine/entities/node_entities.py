@@ -10,6 +10,7 @@ class NodeType(Enum):
     END = "node-end"
     LLM = "spark-llm"
     KNOWLEDGE_BASE = "knowledge-base"
+    KNOWLEDGE_EXPERT = "knowledge-expert-base"
     KNOWLEDGE_PRO = "knowledge-pro-base"
     IF_ELSE = "if-else"
     CODE = "ifly-code"

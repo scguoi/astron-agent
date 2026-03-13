@@ -23,6 +23,7 @@ from workflow.engine.nodes.iteration.iteration_node import (
     IterationNode,
     IterationStartNode,
 )
+from workflow.engine.nodes.knowledge.knowledge_expert_node import KnowledgeExpertNode
 from workflow.engine.nodes.knowledge.knowledge_node import KnowledgeNode
 from workflow.engine.nodes.knowledge_pro.knowledge_pro_node import KnowledgeProNode
 from workflow.engine.nodes.llm.spark_llm_node import SparkLLMNode
@@ -48,6 +49,7 @@ tool_classes = {
     "plugin": PluginNode,  # Plugin tool node for external integrations
     "knowledge-base": KnowledgeNode,  # Knowledge base node for information retrieval
     "knowledge-pro-base": KnowledgeProNode,  # Professional knowledge base node with advanced features
+    "knowledge-expert-base": KnowledgeExpertNode,  # Expert knowledge base node with advanced features
     "extractor-parameter": ParamsExtractorNode,  # Parameter extraction node for data parsing
     "spark-llm": SparkLLMNode,  # Spark LLM node for language model interactions
     "decision-making": DecisionNode,  # Decision making node for conditional logic
