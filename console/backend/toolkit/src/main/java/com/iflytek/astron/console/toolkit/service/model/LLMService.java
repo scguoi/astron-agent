@@ -62,6 +62,12 @@ public class LLMService {
     private static final String PROVIDER_ANTHROPIC = "anthropic";
     private static final String PROVIDER_GOOGLE = "google";
     private static final String PROVIDER_DEEPSEEK = "deepseek";
+    private static final String PROVIDER_MINIMAX = "minimax";
+    private static final String PROVIDER_ZHIPU = "zhipu";
+    private static final String PROVIDER_QWEN = "qwen";
+    private static final String PROVIDER_MOONSHOT = "moonshot";
+    private static final String PROVIDER_CHATGPT = "chatgpt";
+    private static final String PROVIDER_DOUBAO = "doubao";
 
     @Resource
     ConfigInfoMapper configInfoMapper;
@@ -454,6 +460,24 @@ public class LLMService {
         }
         if (value.contains("谷歌") || value.contains("google") || value.contains("gemini")) {
             return PROVIDER_GOOGLE;
+        }
+        if (value.contains("minimax")) {
+            return PROVIDER_MINIMAX;
+        }
+        if (value.contains("鏅鸿氨") || value.contains("zhipu") || value.contains("glm")) {
+            return PROVIDER_ZHIPU;
+        }
+        if (value.contains("鍗冮棶") || value.contains("qwen")) {
+            return PROVIDER_QWEN;
+        }
+        if (value.contains("鏈堜箣鏆楅潰") || value.contains("moonshot") || value.contains("kimi")) {
+            return PROVIDER_MOONSHOT;
+        }
+        if (value.contains("璞嗗寘") || value.contains("doubao") || value.contains("volcengine")) {
+            return PROVIDER_DOUBAO;
+        }
+        if (value.contains("chatgpt")) {
+            return PROVIDER_CHATGPT;
         }
         if (value.contains("openai") || value.contains("gpt-")) {
             return PROVIDER_OPENAI;

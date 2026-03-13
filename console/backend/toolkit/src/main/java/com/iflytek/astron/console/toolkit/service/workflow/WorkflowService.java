@@ -2388,7 +2388,17 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
     }
 
     private boolean requiresCustomModelCredentialInjection(String source) {
-        return StringUtils.equalsAny(source, "openai", "deepseek", "anthropic", "google");
+        return StringUtils.equalsAny(source,
+                "openai",
+                "deepseek",
+                "anthropic",
+                "google",
+                "minimax",
+                "zhipu",
+                "qwen",
+                "moonshot",
+                "chatgpt",
+                "doubao");
     }
 
     /** Knowledge: fill docIds for each knowledge.match section */

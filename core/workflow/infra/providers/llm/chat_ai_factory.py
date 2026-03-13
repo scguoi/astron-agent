@@ -45,6 +45,18 @@ class ChatAIFactory:
             return OpenAIChatAI(**kwargs)
         elif model_source == ModelProviderEnum.DEEPSEEK.value:
             return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.MINIMAX.value:
+            return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.ZHIPU.value:
+            return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.QWEN.value:
+            return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.MOONSHOT.value:
+            return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.CHATGPT.value:
+            return OpenAIChatAI(**kwargs)
+        elif model_source == ModelProviderEnum.DOUBAO.value:
+            return OpenAIChatAI(**kwargs)
         elif model_source == ModelProviderEnum.ANTHROPIC.value:
             return AnthropicChatAI(**kwargs)
         elif model_source == ModelProviderEnum.GOOGLE.value:

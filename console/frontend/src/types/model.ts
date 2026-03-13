@@ -55,6 +55,12 @@ export enum ModelProviderType {
   ANTHROPIC = 'anthropic',
   GOOGLE = 'google',
   DEEPSEEK = 'deepseek',
+  MINIMAX = 'minimax',
+  ZHIPU = 'zhipu',
+  QWEN = 'qwen',
+  MOONSHOT = 'moonshot',
+  CHATGPT = 'chatgpt',
+  DOUBAO = 'doubao',
 }
 
 export enum LocalModelStatus {
@@ -225,6 +231,7 @@ export interface CategoryAsideProps {
   providerOptions?: Array<{ label: string; value: string }>;
   onProviderChange?: (provider?: string) => void;
   showContextLength?: boolean;
+  showModelStatus?: boolean;
 }
 
 // 分类侧边栏组件引用

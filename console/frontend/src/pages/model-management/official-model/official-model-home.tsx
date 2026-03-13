@@ -15,23 +15,34 @@ interface OfficialProviderCard {
   subtitle: string;
   description: string;
   accentClass: string;
+  endpoint: string;
 }
 
 const OfficialModelContent: React.FC = () => {
   const { t } = useTranslation();
   const { state, actions } = useModelContext();
   const filters = useModelFilters();
-  const [selectedProvider, setSelectedProvider] =
-    useState<ModelProviderType | null>(null);
+  const [selectedCard, setSelectedCard] = useState<OfficialProviderCard | null>(
+    null
+  );
 
   const providerCards = useMemo<OfficialProviderCard[]>(
     () => [
+      {
+        provider: ModelProviderType.CHATGPT,
+        title: 'ChatGPT',
+        subtitle: 'GPT-4o / GPT-4.1',
+        description: t('model.providerCardChatGPTDesc'),
+        accentClass: 'from-[#EFFAF4] via-[#F8FDF9] to-white',
+        endpoint: 'https://api.openai.com/v1',
+      },
       {
         provider: ModelProviderType.ANTHROPIC,
         title: 'Claude',
         subtitle: 'Sonnet / Opus',
         description: t('model.providerCardAnthropicDesc'),
         accentClass: 'from-[#FDF3E8] via-[#FFF8F2] to-white',
+        endpoint: 'https://api.anthropic.com',
       },
       {
         provider: ModelProviderType.GOOGLE,
@@ -39,6 +50,47 @@ const OfficialModelContent: React.FC = () => {
         subtitle: '2.5 Flash / 2.5 Pro',
         description: t('model.providerCardGoogleDesc'),
         accentClass: 'from-[#EAF4FF] via-[#F5F9FF] to-white',
+        endpoint: 'https://generativelanguage.googleapis.com',
+      },
+      {
+        provider: ModelProviderType.MINIMAX,
+        title: 'MiniMax',
+        subtitle: 'MiniMax-Text-01',
+        description: t('model.providerCardMiniMaxDesc'),
+        accentClass: 'from-[#FFF3E8] via-[#FFF8F2] to-white',
+        endpoint: 'https://api.minimaxi.com/v1/text/chatcompletion_v2',
+      },
+      {
+        provider: ModelProviderType.ZHIPU,
+        title: 'Zhipu AI',
+        subtitle: 'GLM-4.5 / GLM-4-Flash',
+        description: t('model.providerCardZhipuDesc'),
+        accentClass: 'from-[#F0F5FF] via-[#F7FAFF] to-white',
+        endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+      },
+      {
+        provider: ModelProviderType.QWEN,
+        title: 'Qwen',
+        subtitle: 'Qwen-Max / Qwen-Plus',
+        description: t('model.providerCardQwenDesc'),
+        accentClass: 'from-[#F3F6FF] via-[#FAFBFF] to-white',
+        endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+      },
+      {
+        provider: ModelProviderType.MOONSHOT,
+        title: 'Moonshot',
+        subtitle: 'moonshot-v1',
+        description: t('model.providerCardMoonshotDesc'),
+        accentClass: 'from-[#F8F1FF] via-[#FCF8FF] to-white',
+        endpoint: 'https://api.moonshot.cn/v1',
+      },
+      {
+        provider: ModelProviderType.DOUBAO,
+        title: 'Doubao',
+        subtitle: 'Doubao-Pro / Doubao-Lite',
+        description: t('model.providerCardDoubaoDesc'),
+        accentClass: 'from-[#EEF8FF] via-[#F8FCFF] to-white',
+        endpoint: 'https://ark.cn-beijing.volces.com/api/v3',
       },
       {
         provider: ModelProviderType.DEEPSEEK,
@@ -46,6 +98,7 @@ const OfficialModelContent: React.FC = () => {
         subtitle: 'V3 / R1',
         description: t('model.providerCardDeepSeekDesc'),
         accentClass: 'from-[#EEF2FF] via-[#F7F8FF] to-white',
+        endpoint: 'https://api.deepseek.com/v1',
       },
     ],
     [t]
@@ -68,9 +121,9 @@ const OfficialModelContent: React.FC = () => {
     });
   }, [providerCards, state.providerFilter, state.searchInput]);
 
-  const handleOpenProviderModal = (provider: ModelProviderType): void => {
+  const handleOpenProviderModal = (card: OfficialProviderCard): void => {
     actions.setCurrentEditModel(undefined);
-    setSelectedProvider(provider);
+    setSelectedCard(card);
   };
 
   return (
@@ -93,6 +146,10 @@ const OfficialModelContent: React.FC = () => {
               providerFilter={state.providerFilter}
               providerOptions={[
                 {
+                  label: t('model.providerChatGPT'),
+                  value: ModelProviderType.CHATGPT,
+                },
+                {
                   label: t('model.providerDeepSeek'),
                   value: ModelProviderType.DEEPSEEK,
                 },
@@ -104,9 +161,30 @@ const OfficialModelContent: React.FC = () => {
                   label: t('model.providerGoogle'),
                   value: ModelProviderType.GOOGLE,
                 },
+                {
+                  label: t('model.providerMiniMax'),
+                  value: ModelProviderType.MINIMAX,
+                },
+                {
+                  label: t('model.providerZhipu'),
+                  value: ModelProviderType.ZHIPU,
+                },
+                {
+                  label: t('model.providerQwen'),
+                  value: ModelProviderType.QWEN,
+                },
+                {
+                  label: t('model.providerMoonshot'),
+                  value: ModelProviderType.MOONSHOT,
+                },
+                {
+                  label: t('model.providerDoubao'),
+                  value: ModelProviderType.DOUBAO,
+                },
               ]}
               onProviderChange={filters.handleProviderFilterChange}
               showContextLength={false}
+              showModelStatus={false}
             />
           </aside>
 
@@ -163,7 +241,7 @@ const OfficialModelContent: React.FC = () => {
                           <Button
                             type="primary"
                             className="px-5"
-                            onClick={() => handleOpenProviderModal(card.provider)}
+                            onClick={() => handleOpenProviderModal(card)}
                           >
                             {t('model.configureProvider')}
                           </Button>
@@ -182,10 +260,11 @@ const OfficialModelContent: React.FC = () => {
         </div>
       </div>
 
-      {selectedProvider && (
+      {selectedCard && (
         <CreateModal
-          setCreateModal={() => setSelectedProvider(null)}
-          initialProvider={selectedProvider}
+          setCreateModal={() => setSelectedCard(null)}
+          initialProvider={selectedCard.provider}
+          initialEndpoint={selectedCard.endpoint}
           lockProvider={true}
           hideLocalModel={true}
           showCategoryForm={false}
