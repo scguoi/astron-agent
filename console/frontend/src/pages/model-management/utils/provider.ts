@@ -11,6 +11,24 @@ export function normalizeModelProvider(
 
 export function getModelProviderLabel(provider?: string | null): string {
   const normalizedProvider = normalizeModelProvider(provider);
+  if (normalizedProvider === ModelProviderType.MINIMAX) {
+    return i18next.t('model.providerMiniMax');
+  }
+  if (normalizedProvider === ModelProviderType.ZHIPU) {
+    return i18next.t('model.providerZhipu');
+  }
+  if (normalizedProvider === ModelProviderType.QWEN) {
+    return i18next.t('model.providerQwen');
+  }
+  if (normalizedProvider === ModelProviderType.MOONSHOT) {
+    return i18next.t('model.providerMoonshot');
+  }
+  if (normalizedProvider === ModelProviderType.CHATGPT) {
+    return i18next.t('model.providerChatGPT');
+  }
+  if (normalizedProvider === ModelProviderType.DOUBAO) {
+    return i18next.t('model.providerDoubao');
+  }
   if (normalizedProvider === ModelProviderType.DEEPSEEK) {
     return i18next.t('model.providerDeepSeek');
   }

@@ -463,6 +463,7 @@ interface CreateModalProps {
   setModels?: (models: ModelInfo[]) => void;
   filterType?: number;
   initialProvider?: ModelProviderType | string;
+  initialEndpoint?: string;
   lockProvider?: boolean;
   hideLocalModel?: boolean;
   showCategoryForm?: boolean;
@@ -642,7 +643,19 @@ const ModelBasicForm = ({
   const { t } = useTranslation();
   const currentProvider = normalizeModelProvider(modelInfo?.provider);
   const providerHint =
-    currentProvider === ModelProviderType.DEEPSEEK
+    currentProvider === ModelProviderType.MINIMAX
+      ? t('model.providerHintMiniMax')
+      : currentProvider === ModelProviderType.ZHIPU
+        ? t('model.providerHintZhipu')
+        : currentProvider === ModelProviderType.QWEN
+          ? t('model.providerHintQwen')
+          : currentProvider === ModelProviderType.MOONSHOT
+            ? t('model.providerHintMoonshot')
+            : currentProvider === ModelProviderType.CHATGPT
+              ? t('model.providerHintChatGPT')
+              : currentProvider === ModelProviderType.DOUBAO
+                ? t('model.providerHintDoubao')
+                : currentProvider === ModelProviderType.DEEPSEEK
       ? t('model.providerHintDeepSeek')
       : currentProvider === ModelProviderType.ANTHROPIC
         ? t('model.providerHintAnthropic')
@@ -650,7 +663,19 @@ const ModelBasicForm = ({
           ? t('model.providerHintGoogle')
           : t('model.providerHintOpenAI');
   const modelPlaceholder =
-    currentProvider === ModelProviderType.DEEPSEEK
+    currentProvider === ModelProviderType.MINIMAX
+      ? t('model.minimaxModelPlaceholder')
+      : currentProvider === ModelProviderType.ZHIPU
+        ? t('model.zhipuModelPlaceholder')
+        : currentProvider === ModelProviderType.QWEN
+          ? t('model.qwenModelPlaceholder')
+          : currentProvider === ModelProviderType.MOONSHOT
+            ? t('model.moonshotModelPlaceholder')
+            : currentProvider === ModelProviderType.CHATGPT
+              ? t('model.chatgptModelPlaceholder')
+              : currentProvider === ModelProviderType.DOUBAO
+                ? t('model.doubaoModelPlaceholder')
+                : currentProvider === ModelProviderType.DEEPSEEK
       ? t('model.deepseekModelPlaceholder')
       : currentProvider === ModelProviderType.ANTHROPIC
         ? t('model.anthropicModelPlaceholder')
@@ -658,7 +683,19 @@ const ModelBasicForm = ({
           ? t('model.googleModelPlaceholder')
           : t('model.enterModelFieldValue');
   const endpointPlaceholder =
-    currentProvider === ModelProviderType.DEEPSEEK
+    currentProvider === ModelProviderType.MINIMAX
+      ? t('model.minimaxEndpointPlaceholder')
+      : currentProvider === ModelProviderType.ZHIPU
+        ? t('model.zhipuEndpointPlaceholder')
+        : currentProvider === ModelProviderType.QWEN
+          ? t('model.qwenEndpointPlaceholder')
+          : currentProvider === ModelProviderType.MOONSHOT
+            ? t('model.moonshotEndpointPlaceholder')
+            : currentProvider === ModelProviderType.CHATGPT
+              ? t('model.chatgptEndpointPlaceholder')
+              : currentProvider === ModelProviderType.DOUBAO
+                ? t('model.doubaoEndpointPlaceholder')
+                : currentProvider === ModelProviderType.DEEPSEEK
       ? t('model.deepseekEndpointPlaceholder')
       : currentProvider === ModelProviderType.ANTHROPIC
         ? t('model.anthropicEndpointPlaceholder')
@@ -688,6 +725,30 @@ const ModelBasicForm = ({
               {
                 label: t('model.providerGoogle'),
                 value: ModelProviderType.GOOGLE,
+              },
+              {
+                label: t('model.providerMiniMax'),
+                value: ModelProviderType.MINIMAX,
+              },
+              {
+                label: t('model.providerZhipu'),
+                value: ModelProviderType.ZHIPU,
+              },
+              {
+                label: t('model.providerQwen'),
+                value: ModelProviderType.QWEN,
+              },
+              {
+                label: t('model.providerMoonshot'),
+                value: ModelProviderType.MOONSHOT,
+              },
+              {
+                label: t('model.providerChatGPT'),
+                value: ModelProviderType.CHATGPT,
+              },
+              {
+                label: t('model.providerDoubao'),
+                value: ModelProviderType.DOUBAO,
               },
               {
                 label: t('model.providerDeepSeek'),
@@ -1332,6 +1393,7 @@ const useCreateModal = (
   modelId?: string,
   categoryTree?: CategoryNode[],
   initialProvider?: ModelProviderType | string,
+  initialEndpoint?: string,
   hideLocalModel = false
 ): ReturnType<typeof useModelForm> &
   ReturnType<typeof useModelAvatar> &
@@ -1366,7 +1428,7 @@ const useCreateModal = (
     formState.setModelInfo({
       modelName: '',
       modelDesc: '',
-      interfaceAddress: '',
+      interfaceAddress: initialEndpoint || '',
       apiKEY: '',
       domain: '',
       provider: normalizeModelProvider(initialProvider),
@@ -1413,7 +1475,14 @@ const useCreateModal = (
     // 重置本地模型相关状态
     setSelectedLocalModel('');
     setAcceleratorCount(1);
-  }, [formState, avatarState, paramsState, categoryState, initialProvider]);
+  }, [
+    formState,
+    avatarState,
+    paramsState,
+    categoryState,
+    initialProvider,
+    initialEndpoint,
+  ]);
 
   // 切换模型类型并重置表单数据
   const handleModelCreateTypeChange = useCallback(
@@ -1432,10 +1501,11 @@ const useCreateModal = (
     if (!modelId) {
       formState.setModelInfo({
         ...formState.modelInfo,
+        interfaceAddress: initialEndpoint || formState.modelInfo.interfaceAddress,
         provider: normalizeModelProvider(initialProvider),
       });
     }
-  }, [initialProvider, modelId]);
+  }, [initialProvider, initialEndpoint, modelId]);
 
   useEffect(() => {
     if (modelId) {
@@ -1515,6 +1585,7 @@ export function CreateModal({
   modelId,
   categoryTree,
   initialProvider,
+  initialEndpoint,
   lockProvider = false,
   hideLocalModel = false,
   showCategoryForm = true,
@@ -1523,6 +1594,7 @@ export function CreateModal({
     modelId,
     categoryTree,
     initialProvider,
+    initialEndpoint,
     hideLocalModel
   );
   const { t } = useTranslation();
