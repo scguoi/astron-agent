@@ -145,7 +145,14 @@ def spark_link_app() -> FastAPI:
         os.getenv(const.LOG_LEVEL_KEY),
         Path(__file__).parent.parent / log_path,
     )
+
     init_data_base()
+
+    # Run database migration before starting the service
+    from extensions.database_migration import run_database_migration
+
+    run_database_migration()
+
     load_create_tool_schema()
     load_update_tool_schema()
     load_http_run_schema()
