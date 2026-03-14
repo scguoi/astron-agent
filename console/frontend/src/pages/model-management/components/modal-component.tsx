@@ -873,7 +873,7 @@ const ModelBasicForm = ({
               </div>
             </div>
             <Input
-              maxLength={100}
+              maxLength={255}
               showCount
               placeholder={t('common.inputPlaceholder')}
               className="global-input w-full"
