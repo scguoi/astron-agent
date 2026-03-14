@@ -104,7 +104,7 @@ const OfficialModelContent: React.FC = () => {
         subtitle: 'MiniMax-Text-01',
         description: t('model.providerCardMiniMaxDesc'),
         accentClass: 'from-[#FFF3E8] via-[#FFF8F2] to-white',
-        endpoint: 'https://api.minimaxi.com/v1/text/chatcompletion_v2',
+        endpoint: 'https://api.minimaxi.com/v1',
       },
       {
         provider: ModelProviderType.ZHIPU,
