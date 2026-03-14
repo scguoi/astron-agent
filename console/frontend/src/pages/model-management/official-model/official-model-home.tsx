@@ -8,6 +8,15 @@ import { ModelProvider, useModelContext } from '../context/model-context';
 import { useModelFilters } from '../hooks/use-model-filters';
 import { ModelProviderType } from '@/types/model';
 import { getModelProviderLabel } from '../utils/provider';
+import chatgptIcon from '@/assets/imgs/modelManage/providers/custom/chatgpt.svg';
+import anthropicIcon from '@/assets/imgs/modelManage/providers/custom/anthropic.svg';
+import deepseekIcon from '@/assets/imgs/modelManage/providers/custom/deepseek.svg';
+import googleIcon from '@/assets/imgs/modelManage/providers/custom/google.svg';
+import minimaxIcon from '@/assets/imgs/modelManage/providers/custom/minimax.svg';
+import zhipuIcon from '@/assets/imgs/modelManage/providers/custom/zhipu.svg';
+import qwenIcon from '@/assets/imgs/modelManage/providers/custom/qwen.svg';
+import moonshotIcon from '@/assets/imgs/modelManage/providers/custom/moonshot.svg';
+import doubaoIcon from '@/assets/imgs/modelManage/providers/custom/doubao.svg';
 
 interface OfficialProviderCard {
   provider: ModelProviderType;
@@ -17,6 +26,43 @@ interface OfficialProviderCard {
   accentClass: string;
   endpoint: string;
 }
+
+const ProviderLogoGlyph: React.FC<{ provider: ModelProviderType }> = ({
+  provider,
+}) => {
+  const imageLogoMap: Record<ModelProviderType, string> = {
+    [ModelProviderType.CHATGPT]: chatgptIcon,
+    [ModelProviderType.OPENAI]: chatgptIcon,
+    [ModelProviderType.ANTHROPIC]: anthropicIcon,
+    [ModelProviderType.DEEPSEEK]: deepseekIcon,
+    [ModelProviderType.GOOGLE]: googleIcon,
+    [ModelProviderType.MINIMAX]: minimaxIcon,
+    [ModelProviderType.ZHIPU]: zhipuIcon,
+    [ModelProviderType.QWEN]: qwenIcon,
+    [ModelProviderType.MOONSHOT]: moonshotIcon,
+    [ModelProviderType.DOUBAO]: doubaoIcon,
+  };
+
+  return (
+    <img
+      src={imageLogoMap[provider]}
+      alt={getModelProviderLabel(provider)}
+      className="h-8 w-8 object-contain"
+    />
+  );
+};
+
+const ProviderLogoBadge: React.FC<{ provider: ModelProviderType }> = ({
+  provider,
+}) => {
+  return (
+    <div className="rounded-2xl border border-[#E7EBF4] bg-white px-3 py-3 shadow-[0_10px_24px_rgba(31,35,41,0.06)]">
+      <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[14px] border border-[#EEF1F7] bg-white">
+        <ProviderLogoGlyph provider={provider} />
+      </div>
+    </div>
+  );
+};
 
 const OfficialModelContent: React.FC = () => {
   const { t } = useTranslation();
@@ -220,14 +266,7 @@ const OfficialModelContent: React.FC = () => {
                               {card.subtitle}
                             </p>
                           </div>
-                          <div className="rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-right">
-                            <div className="text-xs text-[#7D8493]">
-                              {t('model.providerLabel')}
-                            </div>
-                            <div className="mt-1 text-sm font-medium text-[#222529]">
-                              {getModelProviderLabel(card.provider)}
-                            </div>
-                          </div>
+                          <ProviderLogoBadge provider={card.provider} />
                         </div>
 
                         <p className="relative mt-6 flex-1 text-sm leading-6 text-[#4F566B]">
