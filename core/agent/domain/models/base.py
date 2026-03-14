@@ -383,9 +383,62 @@ class GoogleLLMModel(ProviderLLMModel):
             payload["generationConfig"] = {"maxOutputTokens": int(max_tokens)}
         return payload
 
+    def _normalize_payload_to_chunk(self, payload: dict[str, Any]) -> CompatChunk:
+        prompt_feedback = payload.get("promptFeedback") or {}
+        if prompt_feedback.get("blockReason"):
+            llm_plugin_error(
+                "-1",
+                str(prompt_feedback.get("blockReason")),
+            )
+
+        candidate = (payload.get("candidates") or [{}])[0]
+        finish_reason = candidate.get("finishReason")
+        parts = candidate.get("content", {}).get("parts", [])
+        normalized = {
+            "choices": [
+                {
+                    "delta": {
+                        "content": "".join(
+                            str(part.get("text", ""))
+                            for part in parts
+                            if part.get("thought") is not True
+                        ),
+                        "reasoning_content": "".join(
+                            str(part.get("text", ""))
+                            for part in parts
+                            if part.get("thought") is True
+                        ),
+                    },
+                    "finish_reason": (
+                        "stop"
+                        if finish_reason in {"STOP", "stop"}
+                        else (str(finish_reason).lower() if finish_reason else None)
+                    ),
+                }
+            ],
+            "usage": {
+                "prompt_tokens": (payload.get("usageMetadata") or {}).get(
+                    "promptTokenCount", 0
+                ),
+                "completion_tokens": (payload.get("usageMetadata") or {}).get(
+                    "candidatesTokenCount", 0
+                ),
+                "total_tokens": (payload.get("usageMetadata") or {}).get(
+                    "totalTokenCount", 0
+                ),
+            },
+        }
+        return self._build_compat_chunk(normalized)
+
     async def _yield_normalized_chunks(
         self, response: httpx.Response
     ) -> AsyncIterator[CompatChunk]:
+        content_type = response.headers.get("content-type", "").lower()
+        if "text/event-stream" not in content_type:
+            payload = json.loads((await response.aread()).decode("utf-8"))
+            yield self._normalize_payload_to_chunk(payload)
+            return
+
         data_lines: list[str] = []
         emitted_stop = False
 
@@ -397,55 +450,20 @@ class GoogleLLMModel(ProviderLLMModel):
                 data_lines = []
                 if raw_data == "[DONE]":
                     break
-                payload = json.loads(raw_data)
-                candidate = (payload.get("candidates") or [{}])[0]
-                finish_reason = candidate.get("finishReason")
-                parts = candidate.get("content", {}).get("parts", [])
-                normalized = {
-                    "choices": [
-                        {
-                            "delta": {
-                                "content": "".join(
-                                    str(part.get("text", ""))
-                                    for part in parts
-                                    if part.get("thought") is not True
-                                ),
-                                "reasoning_content": "".join(
-                                    str(part.get("text", ""))
-                                    for part in parts
-                                    if part.get("thought") is True
-                                ),
-                            },
-                            "finish_reason": (
-                                "stop"
-                                if finish_reason in {"STOP", "stop"}
-                                else (
-                                    str(finish_reason).lower()
-                                    if finish_reason
-                                    else None
-                                )
-                            ),
-                        }
-                    ],
-                    "usage": {
-                        "prompt_tokens": (payload.get("usageMetadata") or {}).get(
-                            "promptTokenCount", 0
-                        ),
-                        "completion_tokens": (payload.get("usageMetadata") or {}).get(
-                            "candidatesTokenCount", 0
-                        ),
-                        "total_tokens": (payload.get("usageMetadata") or {}).get(
-                            "totalTokenCount", 0
-                        ),
-                    },
-                }
-                if normalized["choices"][0]["finish_reason"]:
+                chunk = self._normalize_payload_to_chunk(json.loads(raw_data))
+                if chunk.choices[0].finish_reason:
                     emitted_stop = True
-                yield self._build_compat_chunk(normalized)
+                yield chunk
                 continue
 
             if line.startswith("data:"):
                 data_lines.append(line.split(":", 1)[1].strip())
+
+        if data_lines:
+            chunk = self._normalize_payload_to_chunk(json.loads("\n".join(data_lines)))
+            if chunk.choices[0].finish_reason:
+                emitted_stop = True
+            yield chunk
 
         if not emitted_stop:
             yield self._build_compat_chunk(
