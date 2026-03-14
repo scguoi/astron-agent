@@ -42,11 +42,17 @@ import {
   LocalModelFile,
   LocalModelParams,
   ModelCreateType,
+  ModelProviderType,
 } from '@/types/model';
 import i18next from 'i18next';
 import down from '@/assets/svgs/down.svg';
 import up from '@/assets/svgs/up.svg';
 import { ResponseBusinessError } from '@/types/global';
+import {
+  DEFAULT_MODEL_PROVIDER,
+  getModelProviderLabel,
+  normalizeModelProvider,
+} from '../utils/provider';
 
 const { TextArea } = Input;
 
@@ -152,6 +158,7 @@ const buildSubmitParams = (
     apiKey: encryptedApiKey,
     modelName: modelInfo?.modelName,
     description: modelInfo?.modelDesc,
+    provider: normalizeModelProvider(modelInfo?.provider),
     domain: modelInfo?.domain,
     tag: tags,
     icon: botIcon.value || '',
@@ -455,6 +462,11 @@ interface CreateModalProps {
   categoryTree?: CategoryNode[];
   setModels?: (models: ModelInfo[]) => void;
   filterType?: number;
+  initialProvider?: ModelProviderType | string;
+  initialEndpoint?: string;
+  lockProvider?: boolean;
+  hideLocalModel?: boolean;
+  showCategoryForm?: boolean;
 }
 
 // 删除模型弹窗属性
@@ -618,6 +630,7 @@ const ModelBasicForm = ({
   botColor,
   setShowModal,
   modelCreateType,
+  lockProvider = false,
 }: {
   modelInfo: ModelFormData;
   setModelInfo: (info: ModelFormData) => void;
@@ -625,10 +638,135 @@ const ModelBasicForm = ({
   botColor: string;
   setShowModal: (show: boolean) => void;
   modelCreateType: ModelCreateType;
+  lockProvider?: boolean;
 }): JSX.Element => {
   const { t } = useTranslation();
+  const currentProvider = normalizeModelProvider(modelInfo?.provider);
+  const providerHint =
+    currentProvider === ModelProviderType.MINIMAX
+      ? t('model.providerHintMiniMax')
+      : currentProvider === ModelProviderType.ZHIPU
+        ? t('model.providerHintZhipu')
+        : currentProvider === ModelProviderType.QWEN
+          ? t('model.providerHintQwen')
+          : currentProvider === ModelProviderType.MOONSHOT
+            ? t('model.providerHintMoonshot')
+            : currentProvider === ModelProviderType.CHATGPT
+              ? t('model.providerHintChatGPT')
+              : currentProvider === ModelProviderType.DOUBAO
+                ? t('model.providerHintDoubao')
+                : currentProvider === ModelProviderType.DEEPSEEK
+      ? t('model.providerHintDeepSeek')
+      : currentProvider === ModelProviderType.ANTHROPIC
+        ? t('model.providerHintAnthropic')
+        : currentProvider === ModelProviderType.GOOGLE
+          ? t('model.providerHintGoogle')
+          : t('model.providerHintOpenAI');
+  const modelPlaceholder =
+    currentProvider === ModelProviderType.MINIMAX
+      ? t('model.minimaxModelPlaceholder')
+      : currentProvider === ModelProviderType.ZHIPU
+        ? t('model.zhipuModelPlaceholder')
+        : currentProvider === ModelProviderType.QWEN
+          ? t('model.qwenModelPlaceholder')
+          : currentProvider === ModelProviderType.MOONSHOT
+            ? t('model.moonshotModelPlaceholder')
+            : currentProvider === ModelProviderType.CHATGPT
+              ? t('model.chatgptModelPlaceholder')
+              : currentProvider === ModelProviderType.DOUBAO
+                ? t('model.doubaoModelPlaceholder')
+                : currentProvider === ModelProviderType.DEEPSEEK
+      ? t('model.deepseekModelPlaceholder')
+      : currentProvider === ModelProviderType.ANTHROPIC
+        ? t('model.anthropicModelPlaceholder')
+        : currentProvider === ModelProviderType.GOOGLE
+          ? t('model.googleModelPlaceholder')
+          : t('model.enterModelFieldValue');
+  const endpointPlaceholder =
+    currentProvider === ModelProviderType.MINIMAX
+      ? t('model.minimaxEndpointPlaceholder')
+      : currentProvider === ModelProviderType.ZHIPU
+        ? t('model.zhipuEndpointPlaceholder')
+        : currentProvider === ModelProviderType.QWEN
+          ? t('model.qwenEndpointPlaceholder')
+          : currentProvider === ModelProviderType.MOONSHOT
+            ? t('model.moonshotEndpointPlaceholder')
+            : currentProvider === ModelProviderType.CHATGPT
+              ? t('model.chatgptEndpointPlaceholder')
+              : currentProvider === ModelProviderType.DOUBAO
+                ? t('model.doubaoEndpointPlaceholder')
+                : currentProvider === ModelProviderType.DEEPSEEK
+      ? t('model.deepseekEndpointPlaceholder')
+      : currentProvider === ModelProviderType.ANTHROPIC
+        ? t('model.anthropicEndpointPlaceholder')
+        : currentProvider === ModelProviderType.GOOGLE
+          ? t('model.googleEndpointPlaceholder')
+          : t('model.interfaceAddressPlaceholder');
   return (
     <>
+      {modelCreateType === ModelCreateType.THIRD_PARTY && (
+        <div className="flex flex-col gap-2 font-normal text-sm">
+          <div className="flex items-center justify-between">
+            <div>{t('model.providerLabel')}：</div>
+          </div>
+          <Select
+            value={currentProvider}
+            disabled={lockProvider}
+            style={{ width: '100%' }}
+            options={[
+              {
+                label: t('model.providerOpenAI'),
+                value: ModelProviderType.OPENAI,
+              },
+              {
+                label: t('model.providerAnthropic'),
+                value: ModelProviderType.ANTHROPIC,
+              },
+              {
+                label: t('model.providerGoogle'),
+                value: ModelProviderType.GOOGLE,
+              },
+              {
+                label: t('model.providerMiniMax'),
+                value: ModelProviderType.MINIMAX,
+              },
+              {
+                label: t('model.providerZhipu'),
+                value: ModelProviderType.ZHIPU,
+              },
+              {
+                label: t('model.providerQwen'),
+                value: ModelProviderType.QWEN,
+              },
+              {
+                label: t('model.providerMoonshot'),
+                value: ModelProviderType.MOONSHOT,
+              },
+              {
+                label: t('model.providerChatGPT'),
+                value: ModelProviderType.CHATGPT,
+              },
+              {
+                label: t('model.providerDoubao'),
+                value: ModelProviderType.DOUBAO,
+              },
+              {
+                label: t('model.providerDeepSeek'),
+                value: ModelProviderType.DEEPSEEK,
+              },
+            ]}
+            onChange={value =>
+              setModelInfo({
+                ...modelInfo,
+                provider: value,
+              })
+            }
+          />
+          <div className="rounded-xl bg-[#F6F7FB] text-[#666] text-xs leading-5 px-3 py-2">
+            {providerHint}
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-2 font-normal text-sm">
         <div className="flex items-center justify-between">
           <div>
@@ -675,7 +813,7 @@ const ModelBasicForm = ({
             <Input
               maxLength={50}
               showCount
-              placeholder={t('model.enterModelFieldValue')}
+              placeholder={modelPlaceholder}
               className="global-input w-full"
               value={modelInfo?.domain}
               onChange={e =>
@@ -720,7 +858,7 @@ const ModelBasicForm = ({
             <Input
               maxLength={100}
               showCount
-              placeholder={t('model.interfaceAddressPlaceholder')}
+              placeholder={endpointPlaceholder}
               className="global-input w-full"
               value={modelInfo?.interfaceAddress}
               onChange={e =>
@@ -735,7 +873,7 @@ const ModelBasicForm = ({
               </div>
             </div>
             <Input
-              maxLength={100}
+              maxLength={255}
               showCount
               placeholder={t('common.inputPlaceholder')}
               className="global-input w-full"
@@ -955,6 +1093,7 @@ const useModelForm = (): {
     interfaceAddress: '',
     apiKEY: '',
     domain: '',
+    provider: DEFAULT_MODEL_PROVIDER,
   });
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1227,6 +1366,7 @@ const updateBasicInfo = (
     interfaceAddress: data?.url || '',
     apiKEY: data?.apiKey || '',
     domain: data?.domain || '',
+    provider: normalizeModelProvider(data?.provider),
   });
   formState.beforeModelKeys.current = data?.apiKey || '';
   avatarState.setBotIcon({ name: data?.address || '', value: data?.icon });
@@ -1251,7 +1391,10 @@ const updateModelParams = (
 // 组合主 Hook
 const useCreateModal = (
   modelId?: string,
-  categoryTree?: CategoryNode[]
+  categoryTree?: CategoryNode[],
+  initialProvider?: ModelProviderType | string,
+  initialEndpoint?: string,
+  hideLocalModel = false
 ): ReturnType<typeof useModelForm> &
   ReturnType<typeof useModelAvatar> &
   ReturnType<typeof useModelParams> &
@@ -1269,7 +1412,7 @@ const useCreateModal = (
   const modalRef = useRef<HTMLDivElement>(null);
   const [showModal, setShowModal] = useState(false);
   const [modelCreateType, setModelCreateType] = useState<ModelCreateType>(
-    ModelCreateType.THIRD_PARTY
+    hideLocalModel ? ModelCreateType.THIRD_PARTY : ModelCreateType.THIRD_PARTY
   );
   const [selectedLocalModel, setSelectedLocalModel] = useState<string>('');
   const [acceleratorCount, setAcceleratorCount] = useState<number>(1);
@@ -1285,9 +1428,10 @@ const useCreateModal = (
     formState.setModelInfo({
       modelName: '',
       modelDesc: '',
-      interfaceAddress: '',
+      interfaceAddress: initialEndpoint || '',
       apiKEY: '',
       domain: '',
+      provider: normalizeModelProvider(initialProvider),
     });
     formState.setTags([]);
     formState.beforeModelKeys.current = '';
@@ -1331,7 +1475,14 @@ const useCreateModal = (
     // 重置本地模型相关状态
     setSelectedLocalModel('');
     setAcceleratorCount(1);
-  }, [formState, avatarState, paramsState, categoryState]);
+  }, [
+    formState,
+    avatarState,
+    paramsState,
+    categoryState,
+    initialProvider,
+    initialEndpoint,
+  ]);
 
   // 切换模型类型并重置表单数据
   const handleModelCreateTypeChange = useCallback(
@@ -1346,6 +1497,16 @@ const useCreateModal = (
   );
 
   // 编辑模式数据加载
+  useEffect(() => {
+    if (!modelId) {
+      formState.setModelInfo({
+        ...formState.modelInfo,
+        interfaceAddress: initialEndpoint || formState.modelInfo.interfaceAddress,
+        provider: normalizeModelProvider(initialProvider),
+      });
+    }
+  }, [initialProvider, initialEndpoint, modelId]);
+
   useEffect(() => {
     if (modelId) {
       getModelDetail({
@@ -1423,10 +1584,28 @@ export function CreateModal({
   getModels,
   modelId,
   categoryTree,
+  initialProvider,
+  initialEndpoint,
+  lockProvider = false,
+  hideLocalModel = false,
+  showCategoryForm = true,
 }: CreateModalProps): JSX.Element {
-  const modalState = useCreateModal(modelId, categoryTree);
+  const modalState = useCreateModal(
+    modelId,
+    categoryTree,
+    initialProvider,
+    initialEndpoint,
+    hideLocalModel
+  );
   const { t } = useTranslation();
   const isEditMode = !!modelId;
+  const currentProvider = normalizeModelProvider(modalState.modelInfo?.provider);
+  const modalTitle =
+    modalState.modelCreateType === ModelCreateType.THIRD_PARTY
+      ? t('model.addProviderModel', {
+          provider: getModelProviderLabel(currentProvider),
+        })
+      : t('model.selectLocalModel');
   const handleOk = (): void => {
     if (modalState.modelCreateType === ModelCreateType.LOCAL) {
       handleLocalModelSubmit({
@@ -1490,7 +1669,7 @@ export function CreateModal({
       >
         <div className="flex items-center justify-between font-medium pr-6 mb-[16px]">
           <span className="font-semibold text-base text-[#3d3d3d]">
-            {t('model.addOpenAI')}
+            {modalTitle}
           </span>
           <img
             src={close}
@@ -1507,34 +1686,36 @@ export function CreateModal({
           style={{ maxHeight: '60vh' }}
           ref={modalState.modalRef}
         >
-          <div className="flex">
-            <div className="flex items-center bg-[#f6f9ff] rounded-xl h-10 p-1 gap-1">
-              <div
-                className={`${
-                  modalState.modelCreateType === ModelCreateType.THIRD_PARTY
-                    ? 'bg-white text-[#6356EA] shadow'
-                    : 'text-[#7f7f7f] hover:text-[#6356EA]'
-                } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() =>
-                  modalState.setModelCreateType(ModelCreateType.THIRD_PARTY)
-                }
-              >
-                {t('model.addThirdPartyModel')}
-              </div>
-              <div
-                className={`${
-                  modalState.modelCreateType === ModelCreateType.LOCAL
-                    ? 'bg-white text-[#6356EA] shadow'
-                    : 'text-[#7f7f7f] hover:text-[#6356EA]'
-                } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() =>
-                  modalState.setModelCreateType(ModelCreateType.LOCAL)
-                }
-              >
-                {t('model.selectLocalModel')}
+          {!hideLocalModel && (
+            <div className="flex">
+              <div className="flex items-center bg-[#f6f9ff] rounded-xl h-10 p-1 gap-1">
+                <div
+                  className={`${
+                    modalState.modelCreateType === ModelCreateType.THIRD_PARTY
+                      ? 'bg-white text-[#6356EA] shadow'
+                      : 'text-[#7f7f7f] hover:text-[#6356EA]'
+                  } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                  onClick={() =>
+                    modalState.setModelCreateType(ModelCreateType.THIRD_PARTY)
+                  }
+                >
+                  {t('model.addThirdPartyModel')}
+                </div>
+                <div
+                  className={`${
+                    modalState.modelCreateType === ModelCreateType.LOCAL
+                      ? 'bg-white text-[#6356EA] shadow'
+                      : 'text-[#7f7f7f] hover:text-[#6356EA]'
+                  } min-w-[70px] h-8 px-3 rounded-lg text-sm flex items-center justify-center  transition-colors ${isEditMode ? 'pointer-events-none' : 'cursor-pointer'}`}
+                  onClick={() =>
+                    modalState.setModelCreateType(ModelCreateType.LOCAL)
+                  }
+                >
+                  {t('model.selectLocalModel')}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {modalState.modelCreateType === ModelCreateType.LOCAL && (
             <SelectLocalModel
@@ -1549,27 +1730,30 @@ export function CreateModal({
             botColor={modalState.botColor}
             setShowModal={modalState.setShowModal}
             modelCreateType={modalState.modelCreateType}
+            lockProvider={lockProvider}
           />
-          <ModelCategoryForm
-            modelTypes={modalState.modelTypes}
-            handleTypeChange={modalState.handleTypeChange}
-            categoryOptions={modalState.categoryOptions}
-            hasOtherSelected={modalState.hasOtherSelected}
-            modelTypeOtherText={modalState.modelTypeOtherText}
-            setModelTypeOtherText={modalState.setModelTypeOtherText}
-            languageSystemId={modalState.languageSystemId}
-            setLanguageSystemId={modalState.setLanguageSystemId}
-            languageSupportOptions={modalState.languageSupportOptions}
-            contextLengthSystemId={modalState.contextLengthSystemId}
-            setContextLengthSystemId={modalState.setContextLengthSystemId}
-            contextLengthOptions={modalState.contextLengthOptions}
-            modelScenes={modalState.modelScenes}
-            handleSceneChange={modalState.handleSceneChange}
-            sceneOptions={modalState.sceneOptions}
-            hasSceneOtherSelected={modalState.hasSceneOtherSelected}
-            modelSceneOtherText={modalState.modelSceneOtherText}
-            setModelSceneOtherText={modalState.setModelSceneOtherText}
-          />
+          {showCategoryForm && (
+            <ModelCategoryForm
+              modelTypes={modalState.modelTypes}
+              handleTypeChange={modalState.handleTypeChange}
+              categoryOptions={modalState.categoryOptions}
+              hasOtherSelected={modalState.hasOtherSelected}
+              modelTypeOtherText={modalState.modelTypeOtherText}
+              setModelTypeOtherText={modalState.setModelTypeOtherText}
+              languageSystemId={modalState.languageSystemId}
+              setLanguageSystemId={modalState.setLanguageSystemId}
+              languageSupportOptions={modalState.languageSupportOptions}
+              contextLengthSystemId={modalState.contextLengthSystemId}
+              setContextLengthSystemId={modalState.setContextLengthSystemId}
+              contextLengthOptions={modalState.contextLengthOptions}
+              modelScenes={modalState.modelScenes}
+              handleSceneChange={modalState.handleSceneChange}
+              sceneOptions={modalState.sceneOptions}
+              hasSceneOtherSelected={modalState.hasSceneOtherSelected}
+              modelSceneOtherText={modalState.modelSceneOtherText}
+              setModelSceneOtherText={modalState.setModelSceneOtherText}
+            />
+          )}
           {modalState.modelCreateType === ModelCreateType.LOCAL && (
             <PerformanceConfiguration
               acceleratorCount={modalState.acceleratorCount}
