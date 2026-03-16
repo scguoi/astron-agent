@@ -724,8 +724,13 @@ public class PromptChatService {
 
         try {
             // Try to send end signal and complete connection
-            String endData = "{\"end\":true,\"timestamp\":" + System.currentTimeMillis() + "}";
-            emitter.send(SseEmitter.event().name("end").data(endData));
+            JSONObject endData = new JSONObject();
+            endData.put("end", true);
+            endData.put("timestamp", System.currentTimeMillis());
+            if (completeData != null) {
+                endData.put("message", completeData.getString("message"));
+            }
+            emitter.send(SseEmitter.event().name("end").data(endData.toJSONString()));
             emitter.complete();
             log.debug("SSE connection ended normally, streamId: {}", streamId);
         } catch (org.springframework.web.context.request.async.AsyncRequestNotUsableException e) {
@@ -749,6 +754,7 @@ public class PromptChatService {
     private JSONObject buildCompleteData(StringBuffer finalResult, StringBuffer thinkingResult, StringBuffer traceResult, ChatReqRecords chatReqRecords) {
         JSONObject completeData = new JSONObject();
         completeData.put("finalResult", finalResult.toString());
+        completeData.put("message", finalResult.toString());
         completeData.put("thinkingResult", thinkingResult.toString());
         completeData.put("traceResult", traceResult.toString());
         completeData.put("timestamp", System.currentTimeMillis());
