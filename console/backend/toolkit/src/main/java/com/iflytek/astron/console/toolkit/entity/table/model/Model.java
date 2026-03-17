@@ -61,4 +61,9 @@ public class Model {
     private Integer replicaCount;
 
     private String modelPath;
+
+    /**
+     * Whether has thinking capability
+     */
+    private Boolean isThink;
 }

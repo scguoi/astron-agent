@@ -14,6 +14,7 @@ import {
   Select,
   InputNumber,
   ConfigProvider,
+  Switch,
 } from 'antd';
 import JSEncrypt from 'jsencrypt';
 import {
@@ -178,6 +179,7 @@ const buildSubmitParams = (
       required: item?.required,
       precision: item?.precision,
     })),
+    isThink: modelInfo?.isThink ?? false,
   };
 };
 
@@ -885,6 +887,19 @@ const ModelBasicForm = ({
           </div>
         </>
       )}
+      {/* isThink toggle for enabling thinking capability */}
+      <div className="flex flex-col gap-2 font-normal text-sm">
+        <div className="flex items-center justify-between">
+          <div>{t('model.thinkingCapability')}：</div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={modelInfo?.isThink}
+            onChange={checked => setModelInfo({ ...modelInfo, isThink: checked })}
+          />
+          <span className="text-xs text-gray-500">{t('model.enableThinkingCapability')}</span>
+        </div>
+      </div>
     </>
   );
 };
@@ -1094,6 +1109,7 @@ const useModelForm = (): {
     apiKEY: '',
     domain: '',
     provider: DEFAULT_MODEL_PROVIDER,
+    isThink: false,
   });
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1367,6 +1383,7 @@ const updateBasicInfo = (
     apiKEY: data?.apiKey || '',
     domain: data?.domain || '',
     provider: normalizeModelProvider(data?.provider),
+    isThink: data?.isThink ?? false,
   });
   formState.beforeModelKeys.current = data?.apiKey || '';
   avatarState.setBotIcon({ name: data?.address || '', value: data?.icon });
@@ -1432,6 +1449,7 @@ const useCreateModal = (
       apiKEY: '',
       domain: '',
       provider: normalizeModelProvider(initialProvider),
+      isThink: false,
     });
     formState.setTags([]);
     formState.beforeModelKeys.current = '';
@@ -1503,6 +1521,7 @@ const useCreateModal = (
         ...formState.modelInfo,
         interfaceAddress: initialEndpoint || formState.modelInfo.interfaceAddress,
         provider: normalizeModelProvider(initialProvider),
+        isThink: formState.modelInfo.isThink ?? false,
       });
     }
   }, [initialProvider, initialEndpoint, modelId]);

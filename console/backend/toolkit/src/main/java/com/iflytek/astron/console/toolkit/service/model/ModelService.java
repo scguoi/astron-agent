@@ -482,6 +482,11 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         model.setConfig(
                 Optional.ofNullable(request.getConfig()).map(JSON::toJSONString).orElse(null));
         model.setUpdateTime(new Date());
+
+        // Set isThink field if available in the request
+        if (request.getIsThink() != null) {
+            model.setIsThink(request.getIsThink());
+        }
     }
 
     private static String normalizeProvider(String provider, boolean fallbackOpenAi) {
