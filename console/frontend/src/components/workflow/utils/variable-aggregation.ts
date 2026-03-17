@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import i18next from 'i18next';
 
-import variableAggregationIcon from '@/assets/imgs/workflow/variable-memory-icon.png';
+import variableAggregationIcon from '@/assets/imgs/workflow/variable-aggregation-icon.svg';
 
 export const VARIABLE_AGGREGATION_NODE_TYPE = 'variable-aggregation';
 
