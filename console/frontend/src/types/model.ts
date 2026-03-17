@@ -195,6 +195,7 @@ export interface ModelFormData {
   sceneCustom?: CategoryNode[];
   pid?: number;
   customName?: string;
+  isThink?: boolean;
 }
 
 // 模型卡片组件属性
@@ -323,6 +324,7 @@ export interface ModelCreateParams {
   id?: number; // 更新模型的时候必传
   apiKeyMasked?: boolean; // apikey是否更改，更新模型的时候必传
   modelCategoryReq?: ModelCategoryReq; // 模型分类请求参数
+  isThink?: boolean; // 是否开启思考内容
 }
 
 // 模型详情查询参数

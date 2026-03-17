@@ -213,6 +213,8 @@ const translation = {
     'Connect Doubao official models for enterprise assistant, conversation and tool orchestration scenarios.',
   providerCardDeepSeekDesc:
     'Connect DeepSeek-V3, DeepSeek-R1 and other models for general generation, reasoning and workflow Q&A.',
+  thinkingCapability: 'Thinking Capability',
+  enableThinkingCapability: 'Enable thinking content output',
 };
 
 export default translation;

@@ -38,7 +38,6 @@ from plugin.link.utils.json_schemas.read_json_schemas import (
 from plugin.link.utils.json_schemas.schema_validate import api_validate
 from plugin.link.utils.open_api_schema.response_filter import (
     filter_response_by_x_display,
-    get_missing_visible_declared_paths,
     should_ignore_validation_error_by_x_display,
 )
 from plugin.link.utils.open_api_schema.schema_parser import OpenapiSchemaParser
@@ -234,23 +233,6 @@ def validate_response_schema(  # noqa: C901
     """Validate response against schema and return error messages."""
     response_schema = get_response_schema(open_api_schema)
     er_msgs: List[str] = []
-
-    try:
-        missing_visible_paths = get_missing_visible_declared_paths(
-            result_json,
-            response_schema,
-            open_api_schema,
-        )
-    except Exception as missing_paths_err:
-        logger.exception(
-            "get_missing_visible_declared_paths failed, "
-            f"fallback to []: {missing_paths_err}"
-        )
-        missing_visible_paths = []
-    for missing_path in missing_visible_paths:
-        er_msgs.append(
-            f"参数路径: {missing_path}, 错误信息: 字段在schema中已声明且可见，但在response中缺失"
-        )
 
     import jsonschema
 

@@ -1,5 +1,5 @@
 ## Summary
-Introduce a new OpenAPI response visibility feature based on `x-display`, including schema-aware filtering with `$ref` support and validation guardrails that align visible-field checks with runtime response handling.
+Introduce a new OpenAPI response visibility feature based on `x-display`, including schema-aware filtering with `$ref` support and validation guardrails for required-field checks on hidden paths.
 
 ## Type of Change
 - [ ] Bug fix
@@ -22,7 +22,6 @@ N/A
   - If all children under an object/array container are hidden, keep structural type and return empty `{}` / `[]`.
 - Added/kept compatibility helpers:
   - Hidden path collection (`get_need_be_poped_list`).
-  - Missing declared visible path detection (`get_missing_visible_declared_paths`).
   - Validation error ignore decision for hidden required fields (`should_ignore_validation_error_by_x_display`).
 
 ### 2) Adjust HTTP execution flow: validate first, then filter
