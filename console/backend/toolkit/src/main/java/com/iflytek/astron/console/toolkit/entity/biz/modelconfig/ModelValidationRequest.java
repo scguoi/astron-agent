@@ -34,5 +34,6 @@ public class ModelValidationRequest {
      *
      */
     private Boolean apiKeyMasked = false;
+    private Boolean isThink = false;
     ModelCategoryReq modelCategoryReq;
 }

@@ -208,6 +208,8 @@ const translation = {
     '接入豆包官方模型，适合企业助手、对话生成与工具编排场景。',
   providerCardDeepSeekDesc:
     '接入 DeepSeek-V3、DeepSeek-R1 等模型，适合通用生成、推理与工作流问答。',
+  thinkingCapability: '思维能力',
+  enableThinkingCapability: '启用思考内容输出',
 };
 
 export default translation;
