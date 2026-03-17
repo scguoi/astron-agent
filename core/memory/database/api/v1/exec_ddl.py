@@ -12,6 +12,8 @@ from memory.database.api.schemas.exec_ddl_types import ExecDDLInput
 from memory.database.api.v1.common import (
     check_database_exists_by_did_uid,
     check_space_id_and_get_uid,
+    validate_reserved_functions,
+    validate_reserved_keywords,
 )
 from memory.database.domain.entity.general import exec_sql_statement
 from memory.database.domain.entity.schema import set_search_path_by_schema
@@ -35,111 +37,6 @@ ALLOWED_DDL_STATEMENTS = {
     "COMMENT",
     "RENAME",
 }
-
-PGSQL_INVALID_KEY = [
-    "all",
-    "analyse",
-    "analyze",
-    "and",
-    "any",
-    "array",
-    "as",
-    "asc",
-    "asymmetric",
-    "authorization",
-    "binary",
-    "both",
-    "case",
-    "cast",
-    "check",
-    "collate",
-    "collation",
-    "column",
-    "concurrently",
-    "constraint",
-    "create",
-    "cross",
-    "current_catalog",
-    "current_date",
-    "current_role",
-    "current_schema",
-    "current_time",
-    "current_timestamp",
-    "current_user",
-    "default",
-    "deferrable",
-    "desc",
-    "distinct",
-    "do",
-    "else",
-    "end",
-    "except",
-    "false",
-    "fetch",
-    "for",
-    "foreign",
-    "freeze",
-    "from",
-    "full",
-    "grant",
-    "group",
-    "having",
-    "ilike",
-    "in",
-    "initially",
-    "inner",
-    "intersect",
-    "into",
-    "is",
-    "isnull",
-    "join",
-    "lateral",
-    "leading",
-    "left",
-    "like",
-    "limit",
-    "localtime",
-    "localtimestamp",
-    "natural",
-    "not",
-    "notnull",
-    "null",
-    "offset",
-    "on",
-    "only",
-    "or",
-    "order",
-    "outer",
-    "overlaps",
-    "placing",
-    "primary",
-    "references",
-    "returning",
-    "right",
-    "select",
-    "session_user",
-    "similar",
-    "some",
-    "symmetric",
-    "table",
-    "tablesample",
-    "then",
-    "to",
-    "trailing",
-    "true",
-    "union",
-    "unique",
-    "user",
-    "using",
-    "variadic",
-    "verbose",
-    "when",
-    "where",
-    "window",
-    "with",
-    "current_database",
-    "system_user",
-]
 
 
 def is_ddl_allowed(sql: str, span_context: Span) -> bool:
@@ -250,7 +147,7 @@ def _collect_functions_names(parsed: Any) -> list:
         "sessionuser": "session_user",
         "currentdate": "current_date",
         "currenttime": "current_time",
-        # "currenttimestamp": "current_timestamp",
+        "currenttimestamp": "current_timestamp",
         "currentschema": "current_schema",
         "currentcatalog": "current_catalog",
         "currentdatabase": "current_database",
@@ -369,21 +266,6 @@ def _validate_name_pattern_ddl(
     return None
 
 
-def _validate_reserved_keywords(keys: list, span_context: Any) -> Any:
-    """Validate reserved keywords."""
-    for key_name in keys:
-        if key_name.lower() in PGSQL_INVALID_KEY:
-            span_context.add_error_event(
-                f"Key name '{key_name}' is a reserved keyword and is not allowed"
-            )
-            return format_response(
-                code=CodeEnum.DMLNotAllowed.code,
-                message=f"Key name '{key_name}' is a reserved keyword and is not allowed",
-                sid=span_context.sid,
-            )
-    return None
-
-
 async def _validate_ddl_legality(ddl: str, uid: str, span_context: Any) -> Any:
     """
     Validate DDL statement legality similar to DML validation logic.
@@ -411,7 +293,9 @@ async def _validate_ddl_legality(ddl: str, uid: str, span_context: Any) -> Any:
         # Validate function names
         if function_names:
             # Validate reserved function
-            error_result = _validate_reserved_keywords(function_names, span_context)
+            error_result = await validate_reserved_functions(
+                function_names, span_context
+            )
             if error_result:
                 return error_result
 
@@ -425,7 +309,7 @@ async def _validate_ddl_legality(ddl: str, uid: str, span_context: Any) -> Any:
             if error_result:
                 return error_result
             # Validate reserved column
-            error_result = _validate_reserved_keywords(column_names, span_context)
+            error_result = await validate_reserved_keywords(column_names, span_context)
             if error_result:
                 return error_result
 

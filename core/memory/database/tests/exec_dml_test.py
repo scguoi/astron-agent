@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from memory.database.api.schemas.exec_dml_types import ExecDMLInput
+from memory.database.api.v1.common import validate_reserved_keywords
 from memory.database.api.v1.exec_dml import (
     _build_table_alias_map,
     _collect_column_names,
@@ -30,7 +31,6 @@ from memory.database.api.v1.exec_dml import (
     _validate_comparison_nodes,
     _validate_dml_legality,
     _validate_name_pattern,
-    _validate_reserved_keywords,
     exec_dml,
     rewrite_dml_with_uid_and_limit,
     to_jsonable,
@@ -533,24 +533,26 @@ def test_validate_name_pattern_invalid() -> None:
     span_context.add_error_event.assert_called_once()
 
 
-def test_validate_reserved_keywords_valid() -> None:
+@pytest.mark.asyncio
+async def test_validate_reserved_keywords_valid() -> None:
     """Test reserved keyword validation with non-reserved keywords."""
     keys = ["user_name", "age", "email"]
     span_context = MagicMock()
     span_context.sid = "test-sid"
 
-    result = _validate_reserved_keywords(keys, span_context)
+    result = await validate_reserved_keywords(keys, span_context)
     assert result is None
 
 
-def test_validate_reserved_keywords_invalid() -> None:
+@pytest.mark.asyncio
+async def test_validate_reserved_keywords_invalid() -> None:
     """Test reserved keyword validation with reserved keywords."""
     keys = ["select", "user_name", "where"]
     span_context = MagicMock()
     span_context.sid = "test-sid"
     span_context.add_error_event = MagicMock()
 
-    result = _validate_reserved_keywords(keys, span_context)
+    result = await validate_reserved_keywords(keys, span_context)
     assert result is not None
     span_context.add_error_event.assert_called_once()
 
@@ -599,7 +601,10 @@ async def test_validate_dml_legality_reserved_function() -> None:
     assert result is not None
     body = json.loads(result.body)
     assert body["code"] == CodeEnum.DMLNotAllowed.code
-    assert "reserved keyword" in body["message"].lower()
+    # Fix: The actual error message is "Function name 'current_user' is not allowed"
+    # rather than mentioning "reserved keyword"
+    assert "function name" in body["message"].lower()
+    assert "current_user" in body["message"]
 
 
 @pytest.mark.asyncio
