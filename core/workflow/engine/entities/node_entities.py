@@ -23,6 +23,7 @@ class NodeType(Enum):
     MESSAGE = "message"
     AGENT = "agent"
     PLUGIN = "plugin"
+    VARIABLE_AGGREGATION = "variable-aggregation"
     QUESTION_ANSWER = "question-answer"
     DATABASE = "database"
     RPA = "rpa"
