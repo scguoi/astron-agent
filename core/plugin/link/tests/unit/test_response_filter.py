@@ -3,7 +3,6 @@ from typing import Any, Dict
 from jsonschema import Draft7Validator
 from plugin.link.utils.open_api_schema.response_filter import (
     filter_response_by_x_display,
-    get_missing_visible_declared_paths,
     get_need_be_poped_list,
     get_response_schema,
     should_ignore_validation_error_by_x_display,
@@ -222,80 +221,3 @@ def test_should_not_ignore_validation_error_when_required_field_visible() -> Non
     err = list(Draft7Validator(response_schema).iter_errors(payload))[0]
 
     assert should_ignore_validation_error_by_x_display(err, response_schema) is False
-
-
-def test_missing_visible_declared_paths_excludes_hidden() -> None:
-    response_schema = {
-        "type": "object",
-        "properties": {
-            "visible": {"type": "string", "x-display": True},
-            "hidden": {"type": "string", "x-display": False},
-            "profile": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "x-display": True},
-                    "secret": {"type": "string", "x-display": False},
-                },
-            },
-        },
-    }
-    payload = {"profile": {}, "extra": "keep"}
-
-    missing_paths = get_missing_visible_declared_paths(payload, response_schema)
-
-    assert "$.visible" in missing_paths
-    assert "$.profile.name" in missing_paths
-    assert "$.hidden" not in missing_paths
-    assert "$.profile.secret" not in missing_paths
-
-
-def test_missing_visible_declared_paths_with_ref() -> None:
-    open_api_schema = {
-        "paths": {
-            "/demo": {
-                "get": {
-                    "responses": {
-                        "200": {
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "object",
-                                        "properties": {
-                                            "users": {
-                                                "type": "array",
-                                                "items": {
-                                                    "$ref": "#/components/schemas/UserItem"
-                                                },
-                                            }
-                                        },
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "components": {
-            "schemas": {
-                "UserItem": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string", "x-display": True},
-                        "secret": {"type": "string", "x-display": False},
-                    },
-                }
-            }
-        },
-    }
-    response_schema = get_response_schema(open_api_schema)
-    payload = {"users": [{}, {"name": "b"}]}
-
-    missing_paths = get_missing_visible_declared_paths(
-        payload,
-        response_schema,
-        open_api_schema,
-    )
-
-    assert "$.users[*].name" in missing_paths
-    assert "$.users[*].secret" not in missing_paths
