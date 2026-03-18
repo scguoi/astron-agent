@@ -36,6 +36,9 @@ class PromptChatServiceTest {
     private ChatRecordModelService chatRecordModelService;
 
     @Mock
+    private ManagedWebSearchService managedWebSearchService;
+
+    @Mock
     private SseEmitter emitter;
 
     @Mock
@@ -58,6 +61,7 @@ class PromptChatServiceTest {
         promptChatService = new PromptChatService(httpClient);
         ReflectionTestUtils.setField(promptChatService, "chatDataService", chatDataService);
         ReflectionTestUtils.setField(promptChatService, "chatRecordModelService", chatRecordModelService);
+        ReflectionTestUtils.setField(promptChatService, "managedWebSearchService", managedWebSearchService);
 
         streamId = "test-stream-id";
         request = new JSONObject();
@@ -162,6 +166,130 @@ class PromptChatServiceTest {
             assertNull(req.header("Authorization"));
             return true;
         }));
+    }
+
+    @Test
+    void testChatStream_GoogleRequest_PropagatesNativeSearchTools() {
+        request.put("provider", "google");
+        request.put("model", "gemini-3.1-pro");
+        request.put("messages", JSON.parseArray("""
+                [
+                  {"role":"system","content":"You are helpful."},
+                  {"role":"user","content":"Hello"}
+                ]
+                """));
+        request.put("url", "https://example.com/v1beta/models/gemini-3.1-pro:generateContent");
+        request.put("tools", JSON.parseArray("""[{"google_search":{}}]"""));
+
+        when(httpClient.newCall(any(Request.class))).thenReturn(call);
+        doNothing().when(call).enqueue(any(Callback.class));
+
+        promptChatService.chatStream(request, emitter, streamId, chatReqRecords, false, false);
+
+        verify(httpClient).newCall(argThat(req -> {
+            try {
+                JSONObject body = parseRequestBody(req);
+                assertNotNull(body.getJSONArray("tools"));
+                assertTrue(body.getJSONArray("tools").getJSONObject(0).containsKey("google_search"));
+            } catch (IOException e) {
+                fail(e);
+            }
+            return true;
+        }));
+    }
+
+    @Test
+    void testChatStream_AnthropicRequest_PropagatesSearchToolAndBetaHeader() {
+        request.put("provider", "anthropic");
+        request.put("model", "claude-sonnet");
+        request.put("messages", JSON.parseArray("""
+                [
+                  {"role":"system","content":"You are helpful."},
+                  {"role":"user","content":"Hello"}
+                ]
+                """));
+        request.put("anthropicBeta", "web-search-2025-03-05");
+        request.put("tools", JSON.parseArray("""[{"type":"web_search_20250305","name":"web_search","max_uses":5}]"""));
+
+        when(httpClient.newCall(any(Request.class))).thenReturn(call);
+        doNothing().when(call).enqueue(any(Callback.class));
+
+        promptChatService.chatStream(request, emitter, streamId, chatReqRecords, false, false);
+
+        verify(httpClient).newCall(argThat(req -> {
+            assertEquals("web-search-2025-03-05", req.header("anthropic-beta"));
+            try {
+                JSONObject body = parseRequestBody(req);
+                assertNotNull(body.getJSONArray("tools"));
+                assertEquals("web_search_20250305", body.getJSONArray("tools").getJSONObject(0).getString("type"));
+            } catch (IOException e) {
+                fail(e);
+            }
+            return true;
+        }));
+    }
+
+    @Test
+    void testChatStream_OpenAiManagedSearch_InjectsSearchSummaryIntoMessages() {
+        request.put("provider", "openai");
+        request.put("model", "deepseek-chat");
+        request.put("managedWebSearch", true);
+        request.put("managedSearchQuery", "today's news");
+        request.put("userId", "debug-user");
+        request.put("messages", JSON.parseArray("""
+                [
+                  {"role":"system","content":"You are helpful."},
+                  {"role":"user","content":"<wrapped prompt with knowledge> Help me search today's news"}
+                ]
+                """));
+        when(managedWebSearchService.search(eq("today's news"), eq("test-uid")))
+                .thenReturn(new ManagedWebSearchService.SearchAugmentation(
+                        "Search summary with [1]",
+                        "[{\"type\":\"web_search\",\"deskToolName\":\"Web Search\",\"web_search\":{\"outputs\":[{\"index\":1,\"url\":\"https://example.com\",\"title\":\"Example\"}]}}]",
+                        false,
+                        null));
+        when(httpClient.newCall(any(Request.class))).thenReturn(call);
+        doNothing().when(call).enqueue(any(Callback.class));
+
+        promptChatService.chatStream(request, emitter, streamId, chatReqRecords, false, false);
+
+        verify(httpClient).newCall(argThat(req -> {
+            try {
+                JSONObject body = parseRequestBody(req);
+                assertFalse(body.containsKey("managedSearchQuery"));
+                assertFalse(body.containsKey("userId"));
+                assertTrue(body.getJSONArray("messages").getJSONObject(0).getString("content")
+                        .contains("managed real-time web search"));
+                assertTrue(body.getJSONArray("messages").getJSONObject(0).getString("content")
+                        .contains("Search summary with [1]"));
+            } catch (IOException e) {
+                fail(e);
+            }
+            return true;
+        }));
+    }
+
+    @Test
+    void testChatStream_DebugManagedSearch_UsesRequestUserIdWhenRecordsMissing() {
+        request.put("provider", "openai");
+        request.put("model", "deepseek-chat");
+        request.put("managedWebSearch", true);
+        request.put("managedSearchQuery", "latest headlines");
+        request.put("userId", "debug-user");
+        request.put("messages", JSON.parseArray("""
+                [
+                  {"role":"system","content":"You are helpful."},
+                  {"role":"user","content":"wrapped prompt"}
+                ]
+                """));
+        when(managedWebSearchService.search(eq("latest headlines"), eq("debug-user")))
+                .thenReturn(new ManagedWebSearchService.SearchAugmentation("summary", "[]", false, null));
+        when(httpClient.newCall(any(Request.class))).thenReturn(call);
+        doNothing().when(call).enqueue(any(Callback.class));
+
+        promptChatService.chatStream(request, emitter, streamId, null, false, true);
+
+        verify(managedWebSearchService).search("latest headlines", "debug-user");
     }
 
     @Test
@@ -491,6 +619,13 @@ class PromptChatServiceTest {
 
             verify(emitter, atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
         }
+    }
+
+    private JSONObject parseRequestBody(Request request) throws IOException {
+        assertNotNull(request.body());
+        Buffer sink = new Buffer();
+        request.body().writeTo(sink);
+        return JSON.parseObject(sink.readUtf8());
     }
 
     // ==================== Data Processing Tests ====================

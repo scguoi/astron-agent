@@ -31,6 +31,14 @@ public class PromptChatService {
     private static final String PROVIDER_GOOGLE = "google";
     private static final String PROVIDER_ANTHROPIC = "anthropic";
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
+    private static final String MANAGED_SEARCH_CONTEXT_NOTICE = """
+            System notice: the platform has executed a managed real-time web search for the latest user request.
+            Treat the returned search context as trusted external evidence and use it when producing the final answer.
+            Keep source reference indices like [1] when they appear in the provided search summary.
+            """;
+    private static final String MANAGED_SEARCH_UNAVAILABLE_NOTICE =
+            "System notice: the platform could not complete the enabled real-time web search for this request. " +
+                    "You must explicitly tell the user that real-time web search was unavailable and no live web search result was used.";
 
     private final OkHttpClient httpClient;
 
@@ -39,6 +47,9 @@ public class PromptChatService {
 
     @Autowired
     private ChatRecordModelService chatRecordModelService;
+
+    @Autowired
+    private ManagedWebSearchService managedWebSearchService;
 
     /**
      * Function to handle chat stream requests
@@ -74,6 +85,7 @@ public class PromptChatService {
      * @throws IOException If HTTP request fails
      */
     private void performChatRequest(JSONObject request, SseEmitter emitter, String streamId, ChatReqRecords chatReqRecords, boolean edit, boolean isDebug) throws IOException {
+        prepareManagedWebSearch(request, chatReqRecords);
         String provider = normalizeProvider(request.getString("provider"));
         PreparedRequest preparedRequest = buildPreparedRequest(request, provider);
 
@@ -88,6 +100,9 @@ public class PromptChatService {
         } else if (PROVIDER_ANTHROPIC.equals(provider)) {
             requestBuilder.addHeader("x-api-key", request.getString("apiKey"));
             requestBuilder.addHeader("anthropic-version", "2023-06-01");
+            if (StringUtils.isNotBlank(request.getString("anthropicBeta"))) {
+                requestBuilder.addHeader("anthropic-beta", request.getString("anthropicBeta"));
+            }
         } else {
             requestBuilder.addHeader("Authorization", "Bearer " + request.getString("apiKey"));
         }
@@ -126,7 +141,8 @@ public class PromptChatService {
 
                 ResponseBody body = response.body();
                 if (body != null) {
-                    processSSEStream(body, emitter, streamId, chatReqRecords, edit, isDebug, provider);
+                    processSSEStream(body, emitter, streamId, chatReqRecords, edit, isDebug, provider,
+                            request.getString("managedSearchTrace"));
                 } else {
                     SseEmitterUtil.completeWithError(emitter, "Response body is empty");
                 }
@@ -142,13 +158,19 @@ public class PromptChatService {
      * @param streamId Unique identifier of the stream being processed
      * @param chatReqRecords Chat request records object
      */
-    private void processSSEStream(ResponseBody body, SseEmitter emitter, String streamId, ChatReqRecords chatReqRecords, boolean edit, boolean isDebug, String provider) {
+    private void processSSEStream(ResponseBody body, SseEmitter emitter, String streamId, ChatReqRecords chatReqRecords,
+            boolean edit, boolean isDebug, String provider, String managedSearchTrace) {
         BufferedSource source = body.source();
         StringBuffer finalResult = new StringBuffer();
         StringBuffer thinkingResult = new StringBuffer();
         StringBuffer sid = new StringBuffer();
         StringBuffer traceResult = new StringBuffer();
         boolean streamEnded = false;
+
+        if (StringUtils.isNotBlank(managedSearchTrace)) {
+            traceResult.append(managedSearchTrace);
+            emitManagedSearchToolCalls(emitter, streamId, managedSearchTrace);
+        }
 
         try (body) {
             try {
@@ -158,7 +180,8 @@ public class PromptChatService {
                     if (StringUtils.isNotBlank(payload)) {
                         parseSSEContent(payload, emitter, streamId, finalResult, thinkingResult, sid, traceResult, provider);
                     }
-                    handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+                    handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                            StringUtils.isNotBlank(managedSearchTrace));
                     return;
                 }
 
@@ -166,21 +189,24 @@ public class PromptChatService {
                     // Check if stop signal is received
                     if (SseEmitterUtil.isStreamStopped(streamId)) {
                         log.info("Stop signal detected, saving collected data, streamId: {}", streamId);
-                        handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+                        handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                                StringUtils.isNotBlank(managedSearchTrace));
                         streamEnded = true;
                         break;
                     }
 
                     String line = source.readUtf8Line();
                     if (line == null) {
-                        handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+                        handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                                StringUtils.isNotBlank(managedSearchTrace));
                         streamEnded = true;
                         break;
                     }
 
                     if (line.startsWith("data:")) {
                         if (line.contains("[DONE]")) {
-                            handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+                            handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                                    StringUtils.isNotBlank(managedSearchTrace));
                             streamEnded = true;
                             break;
                         }
@@ -191,7 +217,8 @@ public class PromptChatService {
                         // Check stop signal again after processing each data
                         if (SseEmitterUtil.isStreamStopped(streamId)) {
                             log.info("Stop signal detected after processing data, saving collected data, streamId: {}", streamId);
-                            handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+                            handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                                    StringUtils.isNotBlank(managedSearchTrace));
                             streamEnded = true;
                             break;
                         }
@@ -200,19 +227,22 @@ public class PromptChatService {
             } catch (IOException e) {
                 log.error("Exception reading SSE stream data, saving collected data, streamId: {}", streamId, e);
                 // Save collected data even when exception occurs
-                handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+                handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                        StringUtils.isNotBlank(managedSearchTrace));
                 SseEmitterUtil.completeWithError(emitter, "Data reading exception: " + e.getMessage());
                 streamEnded = true;
             }
         } catch (Exception e) {
             log.warn("Exception closing response body, streamId: {}", streamId, e);
             // Save collected data when exception occurs
-            handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+            handleStreamInterrupted(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                    StringUtils.isNotBlank(managedSearchTrace));
             streamEnded = true;
         }
 
         if (!streamEnded) {
-            handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug);
+            handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
+                    StringUtils.isNotBlank(managedSearchTrace));
         }
     }
 
@@ -232,6 +262,7 @@ public class PromptChatService {
 
         try {
             JSONObject dataObj = JSON.parseObject(data);
+            collectTraceData(dataObj, traceResult, streamId, provider);
             JSONObject normalizedData = normalizeResponsePayload(dataObj, provider);
 
             if (normalizedData == null) {
@@ -330,6 +361,7 @@ public class PromptChatService {
         }
 
         processFirstChoice(choices, finalResult, thinkingResult);
+        processSecondChoiceForTracing(choices, traceResult, streamId);
     }
 
     /**
@@ -354,6 +386,72 @@ public class PromptChatService {
         }
     }
 
+    private void prepareManagedWebSearch(JSONObject request, ChatReqRecords chatReqRecords) {
+        if (!request.getBooleanValue("managedWebSearch")) {
+            return;
+        }
+
+        String searchQuery = StringUtils.defaultIfBlank(
+                request.getString("managedSearchQuery"),
+                resolveLatestUserQuery(request.getJSONArray("messages")));
+        String searchUserId = StringUtils.defaultIfBlank(
+                chatReqRecords == null ? request.getString("userId") : chatReqRecords.getUid(),
+                "managed-web-search");
+
+        ManagedWebSearchService.SearchAugmentation augmentation = managedWebSearchService.search(
+                searchQuery,
+                searchUserId);
+
+        if (augmentation.failed()) {
+            request.remove("managedWebSearch");
+            prependSystemNotice(request, MANAGED_SEARCH_UNAVAILABLE_NOTICE);
+            return;
+        }
+
+        request.put("managedSearchTrace", augmentation.traceJson());
+        prependSystemNotice(request, MANAGED_SEARCH_CONTEXT_NOTICE + "\n\nManaged search summary:\n" + augmentation.summary());
+    }
+
+    private String resolveLatestUserQuery(JSONArray messages) {
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            JSONObject message = messages.getJSONObject(i);
+            if (message != null && "user".equals(normalizeMessageRole(message.getString("role")))) {
+                return message.getString("content");
+            }
+        }
+        return "";
+    }
+
+    private void emitManagedSearchToolCalls(SseEmitter emitter, String streamId, String managedSearchTrace) {
+        if (emitter == null || StringUtils.isBlank(managedSearchTrace)) {
+            return;
+        }
+        JSONArray toolCalls = JSON.parseArray(managedSearchTrace);
+        if (toolCalls == null || toolCalls.isEmpty()) {
+            return;
+        }
+        JSONObject syntheticData = new JSONObject();
+        JSONArray choices = new JSONArray();
+        choices.add(new JSONObject().fluentPut("delta", new JSONObject()));
+        choices.add(new JSONObject().fluentPut("delta", new JSONObject().fluentPut("tool_calls", toolCalls)));
+        syntheticData.put("choices", choices);
+        tryServeSSEData(emitter, syntheticData, streamId);
+    }
+
+    private void prependSystemNotice(JSONObject request, String notice) {
+        JSONArray messages = request.getJSONArray("messages");
+        if (messages == null) {
+            messages = new JSONArray();
+            request.put("messages", messages);
+        }
+        messages.add(0, new JSONObject()
+                .fluentPut("role", "system")
+                .fluentPut("content", notice));
+    }
+
     private PreparedRequest buildPreparedRequest(JSONObject request, String provider) {
         if (PROVIDER_GOOGLE.equals(provider)) {
             return new PreparedRequest(
@@ -367,10 +465,9 @@ public class PromptChatService {
                     JSON.toJSONString(buildAnthropicRequestBody(request)),
                     "text/event-stream");
         }
-        request.put("stream", true);
         return new PreparedRequest(
                 request.getString("url"),
-                JSON.toJSONString(request),
+                JSON.toJSONString(buildOpenAiCompatibleRequestBody(request)),
                 "text/event-stream");
     }
 
@@ -410,6 +507,10 @@ public class PromptChatService {
             systemParts.add(new JSONObject().fluentPut("text", systemPrompt));
             body.put("systemInstruction", new JSONObject().fluentPut("parts", systemParts));
         }
+        JSONArray tools = request.getJSONArray("tools");
+        if (tools != null && !tools.isEmpty()) {
+            body.put("tools", tools);
+        }
         return body;
     }
 
@@ -448,6 +549,31 @@ public class PromptChatService {
             body.put("system", systemPrompt);
         }
         body.put("messages", anthropicMessages);
+        JSONArray tools = request.getJSONArray("tools");
+        if (tools != null && !tools.isEmpty()) {
+            body.put("tools", tools);
+        }
+        return body;
+    }
+
+    private JSONObject buildOpenAiCompatibleRequestBody(JSONObject request) {
+        JSONObject body = new JSONObject();
+        request.forEach((key, value) -> {
+            if (StringUtils.equalsAny(key,
+                    "url",
+                    "apiKey",
+                    "provider",
+                    "userId",
+                    "config",
+                    "managedWebSearch",
+                    "managedSearchQuery",
+                    "managedSearchTrace",
+                    "anthropicBeta")) {
+                return;
+            }
+            body.put(key, value);
+        });
+        body.put("stream", true);
         return body;
     }
 
@@ -462,6 +588,84 @@ public class PromptChatService {
             return normalizeAnthropicResponse(dataObj);
         }
         return dataObj;
+    }
+
+    private void collectTraceData(JSONObject dataObj, StringBuffer traceResult, String streamId, String provider) {
+        if (dataObj == null) {
+            return;
+        }
+        if (PROVIDER_GOOGLE.equals(provider)) {
+            collectGoogleSearchTrace(dataObj, traceResult, streamId);
+            return;
+        }
+        if (PROVIDER_ANTHROPIC.equals(provider)) {
+            collectAnthropicSearchTrace(dataObj, traceResult, streamId);
+        }
+    }
+
+    private void collectGoogleSearchTrace(JSONObject dataObj, StringBuffer traceResult, String streamId) {
+        JSONArray candidates = dataObj.getJSONArray("candidates");
+        if (candidates == null || candidates.isEmpty()) {
+            return;
+        }
+        JSONObject candidate = candidates.getJSONObject(0);
+        JSONObject groundingMetadata = candidate == null ? null : candidate.getJSONObject("groundingMetadata");
+        if (groundingMetadata == null || groundingMetadata.isEmpty()) {
+            return;
+        }
+        JSONArray toolCalls = new JSONArray();
+        toolCalls.add(new JSONObject()
+                .fluentPut("type", "web_search")
+                .fluentPut("deskToolName", "Web Search")
+                .fluentPut("provider", PROVIDER_GOOGLE)
+                .fluentPut("groundingMetadata", groundingMetadata));
+        appendToolCallsTrace(toolCalls, traceResult, streamId);
+    }
+
+    private void collectAnthropicSearchTrace(JSONObject dataObj, StringBuffer traceResult, String streamId) {
+        String type = dataObj.getString("type");
+        JSONObject contentBlock = dataObj.getJSONObject("content_block");
+        String contentBlockType = contentBlock == null ? null : contentBlock.getString("type");
+        if (!StringUtils.containsIgnoreCase(type, "content_block")
+                || !StringUtils.containsIgnoreCase(StringUtils.defaultString(contentBlockType), "web_search")) {
+            return;
+        }
+        JSONArray toolCalls = new JSONArray();
+        toolCalls.add(new JSONObject()
+                .fluentPut("type", "web_search")
+                .fluentPut("deskToolName", "Web Search")
+                .fluentPut("provider", PROVIDER_ANTHROPIC)
+                .fluentPut("content_block", contentBlock));
+        appendToolCallsTrace(toolCalls, traceResult, streamId);
+    }
+
+    private void processSecondChoiceForTracing(JSONArray choices, StringBuffer traceResult, String streamId) {
+        if (choices == null || choices.size() <= 1) {
+            return;
+        }
+
+        JSONObject secondChoice = choices.getJSONObject(1);
+        if (secondChoice == null || !secondChoice.containsKey("delta")) {
+            return;
+        }
+
+        JSONObject delta = secondChoice.getJSONObject("delta");
+        if (delta == null || !delta.containsKey("tool_calls")) {
+            return;
+        }
+
+        appendToolCallsTrace(delta.getJSONArray("tool_calls"), traceResult, streamId);
+    }
+
+    private void appendToolCallsTrace(JSONArray toolCalls, StringBuffer traceResult, String streamId) {
+        if (toolCalls == null || toolCalls.isEmpty()) {
+            return;
+        }
+        if (!traceResult.isEmpty()) {
+            traceResult.append(",");
+        }
+        traceResult.append(toolCalls.toJSONString());
+        log.debug("Save prompt tool trace data, streamId: {}, toolCallsCount: {}", streamId, toolCalls.size());
     }
 
     private JSONObject normalizeGoogleResponse(JSONObject dataObj) {
@@ -656,12 +860,14 @@ public class PromptChatService {
      * @param sid StringBuffer object of session ID
      * @param traceResult StringBuffer object of trace result
      */
-    private void handleStreamComplete(SseEmitter emitter, String streamId, StringBuffer finalResult, StringBuffer thinkingResult, ChatReqRecords chatReqRecords, StringBuffer sid, StringBuffer traceResult, boolean edit, boolean isDebug) {
+    private void handleStreamComplete(SseEmitter emitter, String streamId, StringBuffer finalResult, StringBuffer thinkingResult,
+            ChatReqRecords chatReqRecords, StringBuffer sid, StringBuffer traceResult, boolean edit, boolean isDebug,
+            boolean managedSearchTrace) {
         log.info("Stream completed for streamId: {}", streamId);
 
         // Save data to database first to ensure data is not lost
         if (!isDebug) {
-            saveStreamResultsToDatabase(chatReqRecords, finalResult, thinkingResult, sid, traceResult, edit);
+            saveStreamResultsToDatabase(chatReqRecords, finalResult, thinkingResult, sid, traceResult, edit, managedSearchTrace);
         }
 
         // Build completion data and try to send to client (if still connected)
@@ -680,12 +886,14 @@ public class PromptChatService {
      * @param sid StringBuffer object of session ID
      * @param traceResult StringBuffer object of trace result
      */
-    private void handleStreamInterrupted(SseEmitter emitter, String streamId, StringBuffer finalResult, StringBuffer thinkingResult, ChatReqRecords chatReqRecords, StringBuffer sid, StringBuffer traceResult, boolean edit, boolean isDebug) {
+    private void handleStreamInterrupted(SseEmitter emitter, String streamId, StringBuffer finalResult, StringBuffer thinkingResult,
+            ChatReqRecords chatReqRecords, StringBuffer sid, StringBuffer traceResult, boolean edit, boolean isDebug,
+            boolean managedSearchTrace) {
         log.info("Stream interrupted for streamId: {}, saving collected data", streamId);
 
         // Save collected data to database first to ensure data is not lost
         if (!isDebug) {
-            saveStreamResultsToDatabase(chatReqRecords, finalResult, thinkingResult, sid, traceResult, edit);
+            saveStreamResultsToDatabase(chatReqRecords, finalResult, thinkingResult, sid, traceResult, edit, managedSearchTrace);
         }
 
         // Build interrupted completion data and try to send to client (if still connected)
@@ -776,14 +984,15 @@ public class PromptChatService {
      * @param sid StringBuffer of session ID
      * @param traceResult StringBuffer of trace result
      */
-    private void saveStreamResultsToDatabase(ChatReqRecords chatReqRecords, StringBuffer finalResult, StringBuffer thinkingResult, StringBuffer sid, StringBuffer traceResult, boolean edit) {
+    private void saveStreamResultsToDatabase(ChatReqRecords chatReqRecords, StringBuffer finalResult, StringBuffer thinkingResult,
+            StringBuffer sid, StringBuffer traceResult, boolean edit, boolean managedSearchTrace) {
         if (chatReqRecords == null) {
             return;
         }
 
         chatRecordModelService.saveChatResponse(chatReqRecords, finalResult, sid, edit, 2);
         chatRecordModelService.saveThinkingResult(chatReqRecords, thinkingResult, edit);
-        saveTraceResult(chatReqRecords, traceResult, edit);
+        saveTraceResult(chatReqRecords, traceResult, edit, managedSearchTrace);
     }
 
     /**
@@ -793,7 +1002,7 @@ public class PromptChatService {
      * @param traceResult StringBuffer object storing trace results
      * @param edit Whether in edit mode
      */
-    private void saveTraceResult(ChatReqRecords chatReqRecords, StringBuffer traceResult, boolean edit) {
+    private void saveTraceResult(ChatReqRecords chatReqRecords, StringBuffer traceResult, boolean edit, boolean managedSearchTrace) {
         if (traceResult.isEmpty()) {
             return;
         }
@@ -809,6 +1018,7 @@ public class PromptChatService {
 
             if (existingRecord != null) {
                 existingRecord.setContent(traceResult.toString());
+                existingRecord.setType(managedSearchTrace ? "web_search" : "prompt");
                 existingRecord.setUpdateTime(now);
 
                 chatDataService.updateTraceSourceByUidAndChatIdAndReqId(existingRecord);
@@ -817,20 +1027,21 @@ public class PromptChatService {
             }
         } else {
             // New mode: create new record
-            createNewTraceSource(chatReqRecords, traceResult, now);
+            createNewTraceSource(chatReqRecords, traceResult, now, managedSearchTrace);
         }
     }
 
     /**
      * Create new trace record
      */
-    private void createNewTraceSource(ChatReqRecords chatReqRecords, StringBuffer traceResult, java.time.LocalDateTime now) {
+    private void createNewTraceSource(ChatReqRecords chatReqRecords, StringBuffer traceResult, java.time.LocalDateTime now,
+            boolean managedSearchTrace) {
         ChatTraceSource chatTraceSource = new ChatTraceSource();
         chatTraceSource.setUid(chatReqRecords.getUid());
         chatTraceSource.setChatId(chatReqRecords.getChatId());
         chatTraceSource.setReqId(chatReqRecords.getId());
         chatTraceSource.setContent(traceResult.toString());
-        chatTraceSource.setType("prompt");
+        chatTraceSource.setType(managedSearchTrace ? "web_search" : "prompt");
         chatTraceSource.setCreateTime(now);
         chatTraceSource.setUpdateTime(now);
 
