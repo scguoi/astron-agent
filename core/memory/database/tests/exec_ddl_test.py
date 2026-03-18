@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from memory.database.api.schemas.exec_ddl_types import ExecDDLInput
+from memory.database.api.v1.common import validate_reserved_keywords
 from memory.database.api.v1.exec_ddl import (
     _collect_ddl_identifiers,
     _collect_functions_names,
@@ -17,7 +18,6 @@ from memory.database.api.v1.exec_ddl import (
     _reset_uid,
     _validate_ddl_legality,
     _validate_name_pattern_ddl,
-    _validate_reserved_keywords,
     exec_ddl,
     is_ddl_allowed,
 )
@@ -369,22 +369,28 @@ def test_collect_ddl_identifiers() -> None:
     assert not drop_columns
 
 
-def test_validate_reserved_keywords_ddl() -> None:
+@pytest.mark.asyncio
+async def test_validate_reserved_keywords_ddl() -> None:
     """Test reserved keyword validation in DDL context."""
     span_context = MagicMock()
     span_context.sid = "test-sid"
     span_context.add_error_event = MagicMock()
 
     # Valid keys - should pass
-    result = _validate_reserved_keywords(["user_name", "age", "email"], span_context)
+    result = await validate_reserved_keywords(
+        ["user_name", "age", "email"], span_context
+    )
     assert result is None
 
     # Reserved keyword - should fail with DMLNotAllowed
-    result = _validate_reserved_keywords(["select", "user_name"], span_context)
+    result = await validate_reserved_keywords(["select", "user_name"], span_context)
     assert result is not None
     body = json.loads(result.body)
     assert body["code"] == CodeEnum.DMLNotAllowed.code
-    assert "reserved keyword" in body["message"].lower()
+    # Fix: The actual error message is "Key name 'select' is not allowed"
+    # rather than mentioning "reserved keyword"
+    assert "key name" in body["message"].lower()
+    assert "select" in body["message"]
 
 
 def test_validate_name_pattern_ddl_valid() -> None:
@@ -528,7 +534,10 @@ async def test_validate_ddl_legality_function_reserved_keyword() -> None:
     assert result is not None
     body = json.loads(result.body)
     assert body["code"] == CodeEnum.DMLNotAllowed.code
-    assert "reserved keyword" in body["message"].lower()
+    # Fix: The actual error message is "Function name 'current_user' is not allowed"
+    # rather than mentioning "reserved keyword"
+    assert "function name" in body["message"].lower()
+    assert "current_user" in body["message"]
 
 
 @pytest.mark.asyncio
