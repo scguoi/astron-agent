@@ -202,7 +202,7 @@ public class BotChatServiceImpl implements BotChatService {
                 ModelConfigResult modelConfig = getModelConfiguration(request.getModelId(), sseEmitter);
                 messageList = buildDebugMessageList(request.getText(), prompt, request.getMessages(), modelConfig.maxInputTokens(), request.getMaasDatasetList());
                 Long spaceId = SpaceInfoUtil.getSpaceId();
-                if (!modelService.checkModelBase(LLMService.generate9DigitRandomFromId(modelConfig.llmInfoVo.getLlmId()),
+                if (!modelService.checkModelBase(modelConfig.llmInfoVo.getLlmId(),
                         modelConfig.llmInfoVo().getServiceId(), modelConfig.llmInfoVo.getUrl(), request.getUid(), spaceId)) {
                     throw new BusinessException(ResponseEnum.MODEL_CHECK_FAILED);
                 }
