@@ -139,7 +139,8 @@ class BotChatServiceImplUnitTest {
 
         // Then
         verify(chatDataService).createRequest(any(ChatReqRecords.class));
-        verify(sparkChatService).chatStream(any(SparkChatRequest.class), eq(sseEmitter), eq(sseId), any(), eq(false), eq(false));
+        verify(sparkChatService).chatStream(argThat(req -> req.getEnableWebSearch()),
+                eq(sseEmitter), eq(sseId), any(), eq(false), eq(false));
     }
 
     @Test
@@ -323,7 +324,8 @@ class BotChatServiceImplUnitTest {
         botChatService.debugChatMessageBot(request, sseEmitter, sseId);
 
         // Then
-        verify(sparkChatService).chatStream(any(SparkChatRequest.class), eq(sseEmitter), eq(sseId), isNull(), eq(false), eq(true));
+        verify(sparkChatService).chatStream(argThat(req -> req.getEnableWebSearch()),
+                eq(sseEmitter), eq(sseId), isNull(), eq(false), eq(true));
         verify(promptChatService, never()).chatStream(any(), any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
@@ -360,7 +362,16 @@ class BotChatServiceImplUnitTest {
             botChatService.debugChatMessageBot(request, sseEmitter, sseId);
 
             verify(modelService).getDetail(eq(0), eq(1L), isNull());
-            verify(promptChatService).chatStream(argThat(json -> "openai".equals(json.getString("provider"))), eq(sseEmitter), eq(sseId), isNull(), eq(false), eq(true));
+            verify(promptChatService).chatStream(argThat(json ->
+                            "openai".equals(json.getString("provider")) &&
+                                    json.getBooleanValue("managedWebSearch") &&
+                                    "test message".equals(json.getString("managedSearchQuery")) &&
+                                    "test-uid".equals(json.getString("userId"))),
+                    eq(sseEmitter),
+                    eq(sseId),
+                    isNull(),
+                    eq(false),
+                    eq(true));
             verify(sparkChatService, never()).chatStream(any(), any(), any(), any(), anyBoolean(), anyBoolean());
         }
     }
@@ -372,6 +383,7 @@ class BotChatServiceImplUnitTest {
         request.setPrompt("test prompt");
         request.setMessages(Arrays.asList("message1", "message2"));
         request.setUid("test-uid");
+        request.setOpenedTool("ifly_search");
         request.setModel("gemini-3.1-pro");
         request.setModelId(1L);
 
@@ -396,13 +408,85 @@ class BotChatServiceImplUnitTest {
             botChatService.debugChatMessageBot(request, sseEmitter, sseId);
 
             verify(promptChatService).chatStream(
-                    argThat(json -> "google".equals(json.getString("provider"))),
+                    argThat(json -> "google".equals(json.getString("provider")) &&
+                            json.getJSONArray("tools") != null &&
+                            !json.getJSONArray("tools").isEmpty() &&
+                            json.getJSONArray("tools").getJSONObject(0).containsKey("google_search")),
                     eq(sseEmitter),
                     eq(sseId),
                     isNull(),
                     eq(false),
                     eq(true));
         }
+    }
+
+    @Test
+    void testChatMessageBot_PromptChat_AnthropicAddsNativeWebSearch() {
+        ChatBotReqDto chatBotReqDto = createChatBotReqDto();
+        SseEmitter sseEmitter = new SseEmitter();
+        String sseId = "test-sse-id";
+
+        ChatBotMarket chatBotMarket = createChatBotMarket();
+        chatBotMarket.setModelId(2L);
+        chatBotMarket.setVersion(1);
+
+        ChatReqRecords createdRecord = createChatReqRecords();
+        LLMInfoVo llmInfoVo = createLLMInfoVo();
+        llmInfoVo.setProvider("anthropic");
+        llmInfoVo.setDomain("claude-sonnet");
+
+        when(chatBotDataService.findMarketBotByBotId(anyInt())).thenReturn(chatBotMarket);
+        when(chatDataService.createRequest(any())).thenReturn(createdRecord);
+        when(chatHistoryService.getSystemBotHistory(anyString(), anyLong(), anyBoolean())).thenReturn(new ArrayList<>());
+        when(modelService.getDetail(anyInt(), anyLong(), any())).thenReturn(new ApiResult<>(0, "success", llmInfoVo, 1L));
+        doNothing().when(promptChatService).chatStream(any(JSONObject.class), any(SseEmitter.class), anyString(), any(), anyBoolean(), anyBoolean());
+
+        botChatService.chatMessageBot(chatBotReqDto, sseEmitter, sseId, null, null);
+
+        verify(promptChatService).chatStream(
+                argThat(json -> "anthropic".equals(json.getString("provider")) &&
+                        "web-search-2025-03-05".equals(json.getString("anthropicBeta")) &&
+                        json.getJSONArray("tools") != null &&
+                        "web_search_20250305".equals(json.getJSONArray("tools").getJSONObject(0).getString("type"))),
+                eq(sseEmitter),
+                eq(sseId),
+                any(),
+                eq(false),
+                eq(false));
+    }
+
+    @Test
+    void testChatMessageBot_PromptChat_OpenAiUsesManagedWebSearch() {
+        ChatBotReqDto chatBotReqDto = createChatBotReqDto();
+        SseEmitter sseEmitter = new SseEmitter();
+        String sseId = "test-sse-id";
+
+        ChatBotMarket chatBotMarket = createChatBotMarket();
+        chatBotMarket.setModelId(3L);
+        chatBotMarket.setVersion(1);
+
+        ChatReqRecords createdRecord = createChatReqRecords();
+        LLMInfoVo llmInfoVo = createLLMInfoVo();
+        llmInfoVo.setProvider("openai");
+
+        when(chatBotDataService.findMarketBotByBotId(anyInt())).thenReturn(chatBotMarket);
+        when(chatDataService.createRequest(any())).thenReturn(createdRecord);
+        when(chatHistoryService.getSystemBotHistory(anyString(), anyLong(), anyBoolean())).thenReturn(new ArrayList<>());
+        when(modelService.getDetail(anyInt(), anyLong(), any())).thenReturn(new ApiResult<>(0, "success", llmInfoVo, 1L));
+        doNothing().when(promptChatService).chatStream(any(JSONObject.class), any(SseEmitter.class), anyString(), any(), anyBoolean(), anyBoolean());
+
+        botChatService.chatMessageBot(chatBotReqDto, sseEmitter, sseId, null, null);
+
+        verify(promptChatService).chatStream(
+                argThat(json -> "openai".equals(json.getString("provider")) &&
+                        json.getBooleanValue("managedWebSearch") &&
+                        "test question".equals(json.getString("managedSearchQuery")) &&
+                        "test-uid".equals(json.getString("userId"))),
+                eq(sseEmitter),
+                eq(sseId),
+                any(),
+                eq(false),
+                eq(false));
     }
 
     @Test
