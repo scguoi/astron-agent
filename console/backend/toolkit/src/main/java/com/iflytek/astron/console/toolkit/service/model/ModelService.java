@@ -822,6 +822,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
             vo.setCategoryTree(modelCategoryService.getTree(model.getId()));
             vo.setType(model.getType());
             vo.setProvider(resolveProvider(model));
+            vo.setIsThink(model.getIsThink());
             ownerSquareList.add(vo);
         }
     }
@@ -883,16 +884,44 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
             // Fine-tuning
             return ApiResult.success();
         } else {
-            // Personal
-            LLMInfoVo modelVo = actionWithSelfModel(modelId);
+            // Personal - Apply access control by checking if user has access to this specific model
+            // Get current user context
+            UserInfo userInfo = UserInfoManagerHandler.get();
+            if (userInfo == null) {
+                return ApiResult.error(ResponseEnum.USER_NOT_LOGIN);
+            }
+
+            String currentUid = userInfo.getUid();
+            Long currentSpaceId = SpaceInfoUtil.getSpaceId(); // Assuming this gets current space
+
+            // Verify that the user has access to this model by checking against the same filters as dealWithSelfModel
+            LambdaQueryWrapper<Model> wrapper = new LambdaQueryWrapper<Model>()
+                    .eq(Model::getId, modelId)
+                    .eq(Model::getIsDeleted, 0);
+
+            if (currentSpaceId != null) {
+                wrapper.eq(Model::getSpaceId, currentSpaceId);
+            } else {
+                wrapper.isNull(Model::getSpaceId)
+                      .eq(Model::getUid, currentUid);
+            }
+
+            Model model = mapper.selectOne(wrapper);
+            if (model == null) {
+                // Model doesn't exist or user doesn't have access to it
+                return ApiResult.error(ResponseEnum.MODEL_NOT_EXIST);
+            }
+
+            LLMInfoVo modelVo = buildLLMInfoVoFromModel(model, userInfo);
             return ApiResult.success(modelVo);
         }
     }
 
-    private @NotNull LLMInfoVo actionWithSelfModel(Long modelId) {
-        Model model = mapper.selectOne(new LambdaQueryWrapper<Model>().eq(Model::getId, modelId));
+    /**
+     * Build LLMInfoVo from Model entity
+     */
+    private @NotNull LLMInfoVo buildLLMInfoVoFromModel(Model model, UserInfo userInfo) {
         LLMInfoVo vo = new LLMInfoVo();
-        UserInfo userInfo = UserInfoManagerHandler.get();
         String apiKey = model.getApiKey();
         if (StringUtils.isNotBlank(apiKey) && apiKey.length() > 8) {
             // First 4 digits + asterisks + last 4 digits
@@ -909,17 +938,18 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
         vo.setAddress(s3UtilClient.getS3Prefix());
         BeanUtils.copyProperties(model, vo);
         vo.setUserName(userInfo.getUsername());
-        vo.setLlmId(model.getId());
+        vo.setLlmId(LLMService.generate9DigitRandomFromId(model.getId())); // Important: use the same logic as in dealWithSelfModel
         vo.setUrl(model.getUrl());
         vo.setDomain(model.getDomain());
         vo.setModelId(model.getId());
         vo.setDesc(model.getDesc());
         vo.setProvider(resolveProvider(model));
-        vo.setCategoryTree(modelCategoryService.getTree(modelId));
+        vo.setCategoryTree(modelCategoryService.getTree(model.getId())); // Changed from modelId to model.getId()
         vo.setModelType(model.getSource());
         vo.setIcon(model.getImageUrl());
         vo.setCreateTime(model.getCreateTime());
         vo.setUpdateTime(model.getUpdateTime());
+        vo.setIsThink(model.getIsThink()); // Add the isThink field mapping
         return vo;
     }
 
