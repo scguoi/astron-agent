@@ -888,7 +888,7 @@ public class ModelService extends ServiceImpl<ModelMapper, Model> {
             // Get current user context
             UserInfo userInfo = UserInfoManagerHandler.get();
             if (userInfo == null) {
-                return ApiResult.error(ResponseEnum.USER_NOT_LOGIN);
+                return ApiResult.error(ResponseEnum.UNAUTHORIZED);
             }
 
             String currentUid = userInfo.getUid();
