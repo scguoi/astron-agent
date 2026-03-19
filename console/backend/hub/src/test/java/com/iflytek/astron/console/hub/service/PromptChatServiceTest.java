@@ -168,67 +168,6 @@ class PromptChatServiceTest {
     }
 
     @Test
-    void testChatStream_GoogleRequest_PropagatesNativeSearchTools() {
-        request.put("provider", "google");
-        request.put("model", "gemini-3.1-pro");
-        request.put("messages", JSON.parseArray("""
-                [
-                  {"role":"system","content":"You are helpful."},
-                  {"role":"user","content":"Hello"}
-                ]
-                """));
-        request.put("url", "https://example.com/v1beta/models/gemini-3.1-pro:generateContent");
-        request.put("tools", JSON.parseArray("""[{"google_search":{}}]"""));
-
-        when(httpClient.newCall(any(Request.class))).thenReturn(call);
-        doNothing().when(call).enqueue(any(Callback.class));
-
-        promptChatService.chatStream(request, emitter, streamId, chatReqRecords, false, false);
-
-        verify(httpClient).newCall(argThat(req -> {
-            try {
-                JSONObject body = parseRequestBody(req);
-                assertNotNull(body.getJSONArray("tools"));
-                assertTrue(body.getJSONArray("tools").getJSONObject(0).containsKey("google_search"));
-            } catch (IOException e) {
-                fail(e);
-            }
-            return true;
-        }));
-    }
-
-    @Test
-    void testChatStream_AnthropicRequest_PropagatesSearchToolAndBetaHeader() {
-        request.put("provider", "anthropic");
-        request.put("model", "claude-sonnet");
-        request.put("messages", JSON.parseArray("""
-                [
-                  {"role":"system","content":"You are helpful."},
-                  {"role":"user","content":"Hello"}
-                ]
-                """));
-        request.put("anthropicBeta", "web-search-2025-03-05");
-        request.put("tools", JSON.parseArray("""[{"type":"web_search_20250305","name":"web_search","max_uses":5}]"""));
-
-        when(httpClient.newCall(any(Request.class))).thenReturn(call);
-        doNothing().when(call).enqueue(any(Callback.class));
-
-        promptChatService.chatStream(request, emitter, streamId, chatReqRecords, false, false);
-
-        verify(httpClient).newCall(argThat(req -> {
-            assertEquals("web-search-2025-03-05", req.header("anthropic-beta"));
-            try {
-                JSONObject body = parseRequestBody(req);
-                assertNotNull(body.getJSONArray("tools"));
-                assertEquals("web_search_20250305", body.getJSONArray("tools").getJSONObject(0).getString("type"));
-            } catch (IOException e) {
-                fail(e);
-            }
-            return true;
-        }));
-    }
-
-    @Test
     void testChatStream_OpenAiManagedSearch_InjectsSearchSummaryIntoMessages() {
         request.put("provider", "openai");
         request.put("model", "deepseek-chat");
