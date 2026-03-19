@@ -25,6 +25,7 @@ api:
     toolUrl: ${TOOL_URL:http://127.0.0.1:18888}
     toolRpaUrl: ${TOOL_RPA_URL:http://127.0.0.1:17198}
     workflow: ${WORKFLOW_URL:http://127.0.0.1:7880}
+    workflowTrace: ${WORKFLOW_TRACE_URL:http://172.20.102.22:17890}
     sparkDB: ${SPARK_DB_URL:http://127.0.0.1:7990}
     sparkDocUrl: https://chatdoc.xfyun.cn
     mcpUrlServer: http://127.0.0.1:port

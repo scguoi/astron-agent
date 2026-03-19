@@ -23,6 +23,7 @@ public class ApiUrl {
     String apiKey;
     String apiSecret;
     String workflow;
+    String workflowTrace;
     String openPlatform;
     String tenantId;
     String tenantKey;
