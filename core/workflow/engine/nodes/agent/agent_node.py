@@ -398,6 +398,7 @@ class AgentNode(BaseNode):
             "model_config": {
                 "domain": self.modelConfig.domain,
                 "api": self.modelConfig.api,
+                "provider": self.source,
                 "api_key": (
                     f"{self.apiKey}:{self.apiSecret}"
                     if self.source == ModelProviderEnum.XINGHUO.value

@@ -23,8 +23,10 @@ import com.iflytek.astron.console.commons.service.bot.ChatBotDataService;
 import com.iflytek.astron.console.commons.service.data.ChatDataService;
 import com.iflytek.astron.console.commons.service.data.ChatHistoryService;
 import com.iflytek.astron.console.commons.service.data.ChatListDataService;
+import com.iflytek.astron.console.commons.service.data.UserLangChainDataService;
 import com.iflytek.astron.console.commons.service.workflow.WorkflowBotChatService;
 import com.iflytek.astron.console.commons.util.I18nUtil;
+import com.iflytek.astron.console.commons.util.RequestContextUtil;
 import com.iflytek.astron.console.commons.util.SseEmitterUtil;
 import com.iflytek.astron.console.commons.util.space.SpaceInfoUtil;
 import com.iflytek.astron.console.hub.data.ReqKnowledgeRecordsDataService;
@@ -40,6 +42,7 @@ import com.iflytek.astron.console.toolkit.entity.biz.modelconfig.ModelDto;
 import com.iflytek.astron.console.toolkit.entity.vo.CategoryTreeVO;
 import com.iflytek.astron.console.toolkit.entity.vo.LLMInfoVo;
 import com.iflytek.astron.console.toolkit.service.model.ModelService;
+import com.iflytek.astron.console.toolkit.service.workflow.WorkflowService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,6 +97,12 @@ public class BotChatServiceImpl implements BotChatService {
     private ModelService modelService;
 
     @Autowired
+    private WorkflowService workflowService;
+
+    @Autowired
+    private UserLangChainDataService userLangChainDataService;
+
+    @Autowired
     private PromptChatService promptChatService;
 
     @Autowired
@@ -118,6 +127,7 @@ public class BotChatServiceImpl implements BotChatService {
 
             BotConfiguration botConfig = getBotConfiguration(chatBotReqDto.getBotId());
             if (botConfig.version.equals(BotTypeEnum.WORKFLOW_BOT.getType()) || botConfig.version.equals(BotTypeEnum.TALK.getType())) {
+                syncWorkflowRuntimeModel(chatBotReqDto.getBotId(), botConfig, sseEmitter);
                 workflowBotChatService.chatWorkflowBot(chatBotReqDto, sseEmitter, sseId, workflowOperation, workflowVersion);
             } else {
                 ChatReqRecords chatReqRecords = createChatRequest(chatBotReqDto);
@@ -314,6 +324,8 @@ public class BotChatServiceImpl implements BotChatService {
         modelDto.setType(0);
         modelDto.setPage(1);
         modelDto.setPageSize(1000);
+        modelDto.setUid(RequestContextUtil.getUID());
+        modelDto.setSpaceId(SpaceInfoUtil.getSpaceId());
         ApiResult<Page<LLMInfoVo>> listResult = modelService.getList(modelDto, null);
         Page<LLMInfoVo> page = listResult == null ? null : listResult.data();
         if (page == null || page.getRecords() == null) {
@@ -333,6 +345,21 @@ public class BotChatServiceImpl implements BotChatService {
         log.error("Failed to match model config by domain: {}", modelDomain);
         SseEmitterUtil.completeWithError(sseEmitter, "Failed to get model config");
         throw new BusinessException(ResponseEnum.MODEL_CHECK_FAILED);
+    }
+
+    private void syncWorkflowRuntimeModel(Integer botId, BotConfiguration botConfig, SseEmitter sseEmitter) {
+        if (botId == null || botConfig == null) {
+            return;
+        }
+        ModelConfigResult modelConfigResult = resolveChatModelConfiguration(botConfig.modelId, botConfig.model, sseEmitter);
+        if (modelConfigResult == null) {
+            return;
+        }
+        var userLangChainInfo = userLangChainDataService.findOneByBotId(botId);
+        if (userLangChainInfo == null || StringUtils.isBlank(userLangChainInfo.getFlowId())) {
+            return;
+        }
+        workflowService.syncWorkflowModelConfig(userLangChainInfo.getFlowId(), modelConfigResult.llmInfoVo());
     }
 
     private boolean isSparkModel(String model) {

@@ -2,6 +2,7 @@ package com.iflytek.astron.console.hub.controller.bot;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.iflytek.astron.console.commons.annotation.space.SpacePreAuth;
 import com.iflytek.astron.console.commons.constant.ResponseEnum;
 import com.iflytek.astron.console.commons.dto.bot.BotCreateForm;
@@ -20,10 +21,15 @@ import com.iflytek.astron.console.hub.dto.bot.MaasDuplicate;
 import com.iflytek.astron.console.commons.enums.bot.BotVersionEnum;
 import com.iflytek.astron.console.hub.service.bot.BotTransactionalService;
 import com.iflytek.astron.console.hub.util.BotPermissionUtil;
+import com.iflytek.astron.console.toolkit.entity.biz.modelconfig.ModelDto;
+import com.iflytek.astron.console.toolkit.entity.vo.LLMInfoVo;
+import com.iflytek.astron.console.toolkit.service.model.ModelService;
+import com.iflytek.astron.console.toolkit.service.workflow.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,6 +71,12 @@ public class BotController {
     @Autowired
     private BotTransactionalService botTransactionalService;
 
+    @Autowired
+    private WorkflowService workflowService;
+
+    @Autowired
+    private ModelService modelService;
+
     @Value("${maas.appid:}")
     String tenantId;
 
@@ -80,6 +92,7 @@ public class BotController {
         if (bot.getBotId() != null) {
             botPermissionUtil.checkBot(bot.getBotId());
             if (botService.updateWorkflowBot(uid, bot, request, spaceId)) {
+                syncWorkflowRuntimeModel(bot, request, spaceId);
                 return ApiResult.success();
             }
         } else {
@@ -91,9 +104,59 @@ public class BotController {
             dto.setFlowId(maas.getJSONObject("data").getLong("flowId"));
             dto.setMaasId(maas.getJSONObject("data").getLong("id"));
             botService.addMaasInfo(uid, maas, botId, spaceId);
+            syncWorkflowRuntimeModel(bot, request, spaceId);
             return ApiResult.success(dto);
         }
         return ApiResult.error(ResponseEnum.CREATE_BOT_FAILED);
+    }
+
+    private void syncWorkflowRuntimeModel(BotCreateForm bot, HttpServletRequest request, Long spaceId) {
+        if (bot == null || bot.getBotId() == null) {
+            return;
+        }
+        LLMInfoVo llmInfoVo = resolveSelectedModel(bot, request, spaceId);
+        if (llmInfoVo == null) {
+            log.warn("Skip workflow runtime model sync because selected model cannot be resolved, botId={}, modelId={}, model={}",
+                    bot.getBotId(), bot.getModelId(), bot.getModel());
+            return;
+        }
+
+        UserLangChainInfo userLangChainInfo = userLangChainDataService.findOneByBotId(bot.getBotId());
+        if (userLangChainInfo == null || StringUtils.isBlank(userLangChainInfo.getFlowId())) {
+            log.warn("Skip workflow runtime model sync because flowId is missing, botId={}", bot.getBotId());
+            return;
+        }
+        workflowService.syncWorkflowModelConfig(userLangChainInfo.getFlowId(), llmInfoVo);
+    }
+
+    private LLMInfoVo resolveSelectedModel(BotCreateForm bot, HttpServletRequest request, Long spaceId) {
+        if (bot.getModelId() != null) {
+            LLMInfoVo llmInfoVo = (LLMInfoVo) modelService.getDetail(0, bot.getModelId(), request).data();
+            if (llmInfoVo != null) {
+                return llmInfoVo;
+            }
+        }
+        if (StringUtils.isBlank(bot.getModel())) {
+            return null;
+        }
+        ModelDto modelDto = new ModelDto();
+        modelDto.setPage(1);
+        modelDto.setPageSize(1000);
+        modelDto.setType(0);
+        modelDto.setFilter(0);
+        modelDto.setUid(RequestContextUtil.getUID());
+        modelDto.setSpaceId(spaceId);
+        ApiResult<Page<LLMInfoVo>> result = modelService.getList(modelDto, request);
+        Page<LLMInfoVo> page = result.data();
+        if (page == null || page.getRecords() == null) {
+            return null;
+        }
+        return page.getRecords()
+                .stream()
+                .filter(item -> StringUtils.equals(bot.getModel(), item.getDomain())
+                        || StringUtils.equals(bot.getModel(), item.getServiceId()))
+                .findFirst()
+                .orElse(null);
     }
 
     @PostMapping("/publish")
