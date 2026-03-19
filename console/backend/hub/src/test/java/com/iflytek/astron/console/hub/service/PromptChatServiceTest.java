@@ -142,8 +142,7 @@ class PromptChatServiceTest {
     void testChatStream_GoogleRequest_UsesGoogApiKeyHeader() {
         request.put("provider", "google");
         request.put("model", "gemini-3.1-pro");
-        request.put("messages", JSON.parseArray(
-                "[\n" +
+        request.put("messages", JSON.parseArray("[\n" +
                 "                  {\"role\":\"system\",\"content\":\"You are helpful.\"},\n" +
                 "                  {\"role\":\"user\",\"content\":\"Hello\"}\n" +
                 "                ]\n" +
