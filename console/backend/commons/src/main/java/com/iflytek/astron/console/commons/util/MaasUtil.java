@@ -175,7 +175,7 @@ public class MaasUtil {
         param.put("description", botCreateForm.getBotDesc());
         param.put("advancedConfig", advancedConfig);
         param.put("appId", maasAppId);
-        param.put("domain", "generalv3.5");
+        param.put("domain", resolveWorkflowDomain(botCreateForm));
         param.put("name", botCreateForm.getName());
         param.put("spaceId", spaceId);
         JSONObject ext = new JSONObject();
@@ -246,6 +246,13 @@ public class MaasUtil {
             return new JSONObject();
         }
         return res;
+    }
+
+    private String resolveWorkflowDomain(BotCreateForm botCreateForm) {
+        if (botCreateForm == null || StringUtils.isBlank(botCreateForm.getModel())) {
+            return "generalv3.5";
+        }
+        return StringUtils.trim(botCreateForm.getModel());
     }
 
     @Deprecated(since = "1.0.0", forRemoval = true)

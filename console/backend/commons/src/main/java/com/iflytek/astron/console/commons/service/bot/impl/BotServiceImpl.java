@@ -343,12 +343,19 @@ public class BotServiceImpl implements BotService {
         botBase.setPrologue(bot.getPrologue());
         botBase.setBotDesc(bot.getBotDesc());
         botBase.setBotTemplate(bot.getBotTemplate());
+        botBase.setPrompt(bot.getPrompt());
         botBase.setSupportContext(1);
+        botBase.setSupportDocument(bot.getSupportDocument());
         botBase.setSupportSystem(bot.getSupportSystem());
         botBase.setPromptType(0);
+        botBase.setModel(bot.getModel());
+        botBase.setIsSentence(bot.getIsSentence());
+        botBase.setOpenedTool(bot.getOpenedTool());
+        botBase.setClientType(bot.getClientType());
         botBase.setSpaceId(spaceId);
         setInputExamples(botBase, bot.getInputExample(), null);
         botBase.setBotwebStatus(0);
+        botBase.setModelId(bot.getModelId());
         botBase.setVersion(version);
         return botBase;
     }
@@ -441,7 +448,12 @@ public class BotServiceImpl implements BotService {
                     .supportDocument(bot.getSupportDocument())
                     .supportSystem(bot.getSupportSystem())
                     .promptType(bot.getPromptType())
+                    .model(bot.getModel())
+                    .isSentence(bot.getIsSentence())
+                    .openedTool(bot.getOpenedTool())
+                    .clientType(bot.getClientType())
                     .inputExample(bot.getInputExample() != null && bot.getInputExample().size() > 0 ? String.join(BOT_INPUT_EXAMPLE_SPLIT, bot.getInputExample()) : null)
+                    .modelId(bot.getModelId())
                     .build();
 
             chatBotDataService.updateBot(botBase);
