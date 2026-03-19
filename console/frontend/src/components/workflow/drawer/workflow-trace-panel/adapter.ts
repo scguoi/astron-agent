@@ -61,35 +61,39 @@ const extractModelName = (node: WorkflowTraceNode): string | undefined => {
   const outputModel =
     typeof node.output?.model === 'string' ? (node.output.model as string) : '';
   const config = node.config || {};
+  const configDomain = typeof config.domain === 'string' ? config.domain : '';
   const configModelName =
     typeof config.model_name === 'string' ? config.model_name : '';
   const configModel = typeof config.model === 'string' ? config.model : '';
-  const configDomain = typeof config.domain === 'string' ? config.domain : '';
 
   return (
-    inputModel ||
-    outputModel ||
+    configDomain ||
     configModelName ||
     configModel ||
-    configDomain ||
+    inputModel ||
+    outputModel ||
     undefined
   );
 };
 
-const shouldCreateModelChild = (
-  traceNode: TraceTreeNode,
-  node: WorkflowTraceNode
-): boolean => {
+const isModelDrivenNode = (node: WorkflowTraceNode): boolean => {
   const modelName = extractModelName(node);
-  const source = `${traceNode.type} ${traceNode.name}`.toLowerCase();
+  const source = `${node.nodeId} ${node.nodeName} ${node.nodeType}`.toLowerCase();
+  const config = node.config || {};
+
   return (
+    source.includes('spark-llm') ||
+    source.includes('question-answer') ||
     source.includes('llm') ||
     source.includes('模型') ||
     source.includes('大模型') ||
+    source.includes('问答节点') ||
     Boolean(modelName) ||
-    Boolean(node.input?.model) ||
-    Boolean(node.output?.model) ||
-    Boolean(node.config)
+    typeof config.model_name === 'string' ||
+    typeof config.domain === 'string' ||
+    typeof config.base_url === 'string' ||
+    typeof config.url === 'string' ||
+    typeof config.message === 'string'
   );
 };
 
@@ -114,9 +118,11 @@ const HIDDEN_MODEL_CONFIG_KEYS = new Set([
   'url',
   'base_url',
   'apikey',
-  'appId',
+  'apisecret',
+  'appid',
   'source',
   'node_id',
+  'uid',
 ]);
 
 const sanitizeModelConfig = (
@@ -127,7 +133,9 @@ const sanitizeModelConfig = (
   }
 
   return Object.fromEntries(
-    Object.entries(value).filter(([key]) => !HIDDEN_MODEL_CONFIG_KEYS.has(key))
+    Object.entries(value).filter(
+      ([key]) => !HIDDEN_MODEL_CONFIG_KEYS.has(key.toLowerCase())
+    )
   );
 };
 
@@ -144,6 +152,7 @@ const toTraceNode = (
   displayId: string
 ): TraceTreeNode => {
   const usage = getUsage(node.usage);
+
   return {
     id: displayId,
     name: node.nodeName || node.nodeId || 'Unnamed Node',
@@ -162,6 +171,97 @@ const toTraceNode = (
     output: node.output,
     logs: node.logs,
     modelName: extractModelName(node),
+    selectable: true,
+  };
+};
+
+const createTraceNodeWithModelChild = (
+  execution: WorkflowTraceExecutionItem,
+  node: WorkflowTraceNode,
+  displayId: string
+): TraceTreeNode => {
+  const traceNode: TraceTreeNode = {
+    ...toTraceNode(execution, node, displayId),
+    children: [],
+  };
+
+  if (!isModelDrivenNode(node)) {
+    return traceNode;
+  }
+
+  traceNode.children = [
+    {
+      ...traceNode,
+      id: `${displayId}::model`,
+      name: '大模型详情',
+      kind: 'model',
+      input: sanitizeModelConfig(node.config) || {},
+      output: buildModelChildOutput(node),
+      children: [],
+    },
+  ];
+
+  return traceNode;
+};
+
+const isIterationNode = (node: WorkflowTraceNode): boolean =>
+  node.nodeId.startsWith('iteration::');
+
+const isIterationStartNode = (node: WorkflowTraceNode): boolean =>
+  node.nodeId.startsWith('iteration-node-start::');
+
+const isIterationEndNode = (node: WorkflowTraceNode): boolean =>
+  node.nodeId.startsWith('iteration-node-end::');
+
+const buildIterationRunNode = (
+  execution: WorkflowTraceExecutionItem,
+  runIndex: number,
+  nodes: WorkflowTraceNode[]
+): TraceTreeNode => {
+  const firstNode = nodes[0];
+  const lastNode = nodes[nodes.length - 1];
+  const totalTokens = nodes.reduce(
+    (sum, node) => sum + (node.usage?.totalTokens ?? 0),
+    0
+  );
+  const promptTokens = nodes.reduce(
+    (sum, node) => sum + (node.usage?.promptTokens ?? 0),
+    0
+  );
+  const completionTokens = nodes.reduce(
+    (sum, node) => sum + (node.usage?.completionTokens ?? 0),
+    0
+  );
+  const questionTokens = nodes.reduce(
+    (sum, node) => sum + (node.usage?.questionTokens ?? 0),
+    0
+  );
+  const status = nodes.some(node => normalizeStatus(node.status) === 'failed')
+    ? 'failed'
+    : nodes.some(node => normalizeStatus(node.status) === 'running')
+      ? 'running'
+      : 'success';
+
+  return {
+    id: `iteration-run::${firstNode?.id || runIndex}`,
+    name: `第${runIndex}次`,
+    type: 'iteration-run',
+    kind: 'iteration-run',
+    status,
+    duration: Math.max((lastNode?.endTime || 0) - (firstNode?.startTime || 0), 0),
+    offset: Math.max((firstNode?.startTime || 0) - (execution.startTime || 0), 0),
+    totalTokens,
+    promptTokens,
+    completionTokens,
+    questionTokens,
+    selectable: false,
+    children: nodes.map((node, index) =>
+      createTraceNodeWithModelChild(
+        execution,
+        node,
+        `${node.id}::iteration-run::${runIndex}::${index}`
+      )
+    ),
   };
 };
 
@@ -184,29 +284,59 @@ export const buildTraceTree = (
     return [];
   }
 
-  return detail.nodes.map((node, index) => {
-    const displayId = `${node.id}::${index}`;
-    const traceNode: TraceTreeNode = {
-      ...toTraceNode(detail.execution, node, displayId),
-      children: [],
-    };
+  const tree: TraceTreeNode[] = [];
+  const pendingIterationRuns: WorkflowTraceNode[][] = [];
+  let currentIterationRun: WorkflowTraceNode[] | undefined;
 
-    if (shouldCreateModelChild(traceNode, node)) {
-      traceNode.children = [
-        {
-          ...traceNode,
-          id: `${displayId}::model`,
-          name: 'model_name',
-          kind: 'model',
-          input: sanitizeModelConfig(node.config) || {},
-          output: buildModelChildOutput(node),
-          children: [],
-        },
-      ];
+  const appendTraceNode = (node: WorkflowTraceNode, index: number): void => {
+    tree.push(
+      createTraceNodeWithModelChild(detail.execution, node, `${node.id}::${index}`)
+    );
+  };
+
+  detail.nodes.forEach((node, index) => {
+    if (isIterationStartNode(node)) {
+      currentIterationRun = [node];
+      return;
     }
 
-    return traceNode;
+    if (currentIterationRun) {
+      currentIterationRun.push(node);
+
+      if (isIterationEndNode(node)) {
+        pendingIterationRuns.push(currentIterationRun);
+        currentIterationRun = undefined;
+      }
+      return;
+    }
+
+    if (isIterationNode(node)) {
+      const traceNode: TraceTreeNode = {
+        ...toTraceNode(detail.execution, node, `${node.id}::${index}`),
+        kind: 'iteration-group',
+        children: pendingIterationRuns.map((runNodes, runIndex) =>
+          buildIterationRunNode(detail.execution, runIndex + 1, runNodes)
+        ),
+      };
+      tree.push(traceNode);
+      pendingIterationRuns.length = 0;
+      return;
+    }
+
+    appendTraceNode(node, index);
   });
+
+  if (currentIterationRun?.length) {
+    pendingIterationRuns.push(currentIterationRun);
+  }
+
+  pendingIterationRuns.forEach(runNodes => {
+    runNodes.forEach((runNode, runIndex) => {
+      appendTraceNode(runNode, detail.nodes.length + runIndex);
+    });
+  });
+
+  return tree;
 };
 
 export const flattenNodes = (

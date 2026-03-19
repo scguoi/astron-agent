@@ -105,6 +105,10 @@ export const transformTraceData = (data: TraceData): TraceData => {
  */
 export interface TraceNode extends TraceData {
   children?: TraceNode[];
+  key?: string;
+  data?: any;
+  selectable?: boolean;
+  isVirtual?: boolean;
 }
 
 export const convertToTree = (
@@ -116,19 +120,80 @@ export const convertToTree = (
     return [];
   }
 
-  // 创建一个映射表，用于快速查找节点
-  const nodeMap = new Map<string, TraceData>();
+  const traceNodes = data.map(node => transformTraceData(node));
+  const traceNodesById = new Map<string, TraceNode>();
 
-  // 首先将所有节点添加到映射表中，以func_id为键
-  for (const node of data) {
-    nodeMap.set(node.func_id, transformTraceData(node));
-  }
+  traceNodes.forEach(node => {
+    if (node.id) {
+      traceNodesById.set(node.id, node as TraceNode);
+    }
+  });
+
+  const findNodeByLogId = (logId: string): TraceNode | undefined => {
+    if (!logId) {
+      return undefined;
+    }
+
+    const exactNode = traceNodesById.get(logId);
+    if (exactNode) {
+      return exactNode;
+    }
+
+    return traceNodes.find(
+      node => node.id && typeof node.id === 'string' && node.id.includes(logId)
+    ) as TraceNode | undefined;
+  };
+
+  const buildNodeKey = (parentKey: string, nodeId?: string, suffix?: string) =>
+    [parentKey, nodeId || 'unknown', suffix].filter(Boolean).join('_');
+
+  const buildTree = (
+    sourceNode: TraceNode,
+    nodeKey: string,
+    visited: Set<string> = new Set()
+  ): TraceNode => {
+    const currentNode: TraceNode = {
+      ...sourceNode,
+      key: nodeKey,
+    };
+
+    if (!sourceNode.id || visited.has(sourceNode.id)) {
+      return currentNode;
+    }
+
+    visited.add(sourceNode.id);
+
+    const nextLogIds = sourceNode.next_log_ids || [];
+    currentNode.children = [];
+
+    for (const nextId of nextLogIds) {
+      const childNode = findNodeByLogId(nextId);
+
+      if (!childNode) {
+        continue;
+      }
+
+      if (!showEndNode && childNode.func_code === 'node-end') {
+        continue;
+      }
+
+      currentNode.children.push(
+        buildTree(
+          childNode,
+          buildNodeKey(nodeKey, childNode.id),
+          new Set(visited)
+        )
+      );
+    }
+
+    return currentNode;
+  };
 
   // 找到根节点（以node-start::开头的func_id）
   let rootNode: TraceNode | null = null;
 
-  // 使用Array.from()解决Map迭代的TypeScript错误
-  for (const [funcId, node] of Array.from(nodeMap.entries())) {
+  for (const node of traceNodes) {
+    const funcId = node.func_id;
     if (
       funcId &&
       typeof funcId === 'string' &&
@@ -148,48 +213,70 @@ export const convertToTree = (
     return [];
   }
 
-  // 递归构建树
-  const buildTree = (currentNode: TraceNode): TraceNode => {
-    // 获取当前节点的next_log_ids
-    const nextLogIds = currentNode.next_log_ids || [];
+  const attachIterationGroups = (currentNode: TraceNode) => {
+    currentNode.children?.forEach(child => attachIterationGroups(child));
 
-    if (nextLogIds.length === 0) {
-      return currentNode;
+    if (!currentNode.func_id?.startsWith('iteration::')) {
+      return;
     }
 
-    // 预分配子节点数组，减少动态扩容
-    currentNode.children = [];
+    const iterationStartNodeId =
+      currentNode.data?.config?.IterationStartNodeId ||
+      currentNode.data?.config?.iterationStartNodeId;
 
-    // 对于每个next_log_id，找到对应的子节点
-    for (const nextId of nextLogIds) {
-      // 优化：直接查找包含nextId的节点，不需要遍历整个Map
-      let childNode: TraceNode | undefined;
-      // 使用Array.from()解决Map迭代的TypeScript错误
-      for (const [, node] of Array.from(nodeMap.entries())) {
-        if (
-          node.id &&
-          typeof node.id === 'string' &&
-          node.id.includes(nextId)
-        ) {
-          childNode = { ...node, key: `${currentNode.id}_${node.id}` };
-          break;
-        }
-      }
-
-      if (childNode) {
-        // 当showEndNode为false时，过滤掉func_code为"node-end"的节点
-        if (!showEndNode && childNode.func_code === 'node-end') {
-          continue;
-        }
-        currentNode.children.push(buildTree(childNode));
-      }
+    if (!iterationStartNodeId || typeof iterationStartNodeId !== 'string') {
+      return;
     }
 
-    return currentNode;
+    const iterationRuns = traceNodes.filter(
+      node => node.func_id === iterationStartNodeId
+    ) as TraceNode[];
+
+    if (!iterationRuns.length) {
+      return;
+    }
+
+    const iterationOptionNodes = iterationRuns.map((node, index) => {
+      const optionLabel = `第${index + 1}次`;
+      const optionKey = buildNodeKey(
+        currentNode.key || currentNode.id || 'iteration',
+        'iteration-option',
+        `${index + 1}`
+      );
+
+      return {
+        id: `iteration-option-${currentNode.id}-${index + 1}`,
+        key: optionKey,
+        func_id: `iteration-option::${index + 1}`,
+        func_code: 'iteration-option',
+        func_name: optionLabel,
+        node_name: optionLabel,
+        func_type: 'iteration-option',
+        node_type: 'iteration-option',
+        duration: node.duration,
+        executionTime: node.executionTime,
+        data: {},
+        selectable: false,
+        isVirtual: true,
+        children: [
+          buildTree(node, buildNodeKey(optionKey, node.id), new Set<string>()),
+        ],
+      } as TraceNode;
+    });
+
+    const existingChildren = currentNode.children || [];
+    const filteredChildren = existingChildren.filter(
+      child => child.func_id !== iterationStartNodeId
+    );
+
+    currentNode.children = [...iterationOptionNodes, ...filteredChildren];
   };
 
   // 从根节点开始构建树
-  return [buildTree(rootNode)];
+  const tree = [buildTree(rootNode, rootNode.id || 'root')];
+  tree.forEach(node => attachIterationGroups(node));
+
+  return tree;
 };
 
 /**

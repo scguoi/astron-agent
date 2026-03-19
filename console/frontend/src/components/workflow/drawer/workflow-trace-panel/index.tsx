@@ -3,9 +3,11 @@ import {
   AppstoreOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
+  DownOutlined,
   EyeOutlined,
   FireOutlined,
   ReloadOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Empty, Select, Space, Spin, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -61,27 +63,51 @@ const stringifyData = (value?: Record<string, unknown>): string => {
 const renderTree = (
   nodes: TraceTreeNode[],
   selectedNodeId: string,
+  expandedNodeIds: Set<string>,
   onSelect: (node: TraceTreeNode) => void,
+  onToggle: (nodeId: string) => void,
   level = 0
 ): React.ReactNode =>
   nodes.map(node => {
     const isSelected = selectedNodeId === node.id;
+    const isExpanded = expandedNodeIds.has(node.id);
+    const hasChildren = Boolean(node.children?.length);
+    const isSelectable = node.selectable !== false;
 
     return (
       <div key={node.id}>
         <div
-          className={`${styles.treeRow} ${isSelected ? styles.treeRowActive : ''}`}
+          className={`${styles.treeRow} ${isSelected ? styles.treeRowActive : ''} ${
+            !isSelectable ? styles.treeRowGroup : ''
+          }`}
           style={{ paddingLeft: `${level * 22}px` }}
-          onClick={() => onSelect(node)}
+          onClick={() => {
+            if (hasChildren) {
+              onToggle(node.id);
+            }
+            if (isSelectable) {
+              onSelect(node);
+            }
+          }}
         >
           <div className={styles.treeLeft}>
-            <span className={styles.treeConnector} />
+            <span
+              className={`${styles.treeToggle} ${!hasChildren ? styles.treeTogglePlaceholder : ''}`}
+            >
+              {hasChildren ? (
+                isExpanded ? <DownOutlined /> : <RightOutlined />
+              ) : (
+                <span className={styles.treeConnector} />
+              )}
+            </span>
             <span
               className={`${styles.nodeIcon} ${
                 node.status === 'failed' ? styles.nodeIconFailed : ''
-              }`}
+              } ${!isSelectable ? styles.nodeIconGroup : ''}`}
             >
-              {node.status === 'failed' ? (
+              {!isSelectable ? (
+                <AppstoreOutlined />
+              ) : node.status === 'failed' ? (
                 <CloseCircleFilled />
               ) : (
                 <CheckCircleFilled />
@@ -105,8 +131,16 @@ const renderTree = (
             <EyeOutlined className={styles.eyeIcon} />
           </div>
         </div>
-        {node.children &&
-          renderTree(node.children, selectedNodeId, onSelect, level + 1)}
+        {hasChildren &&
+          isExpanded &&
+          renderTree(
+            node.children || [],
+            selectedNodeId,
+            expandedNodeIds,
+            onSelect,
+            onToggle,
+            level + 1
+          )}
       </div>
     );
   });
@@ -126,6 +160,7 @@ function WorkflowTracePanel(): React.ReactElement {
   const [viewMode, setViewMode] = useState<TraceView>('flame');
   const [traceTree, setTraceTree] = useState<TraceTreeNode[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState('');
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(new Set());
   const [loadingExecutions, setLoadingExecutions] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [reloadSeq, setReloadSeq] = useState(0);
@@ -141,9 +176,18 @@ function WorkflowTracePanel(): React.ReactElement {
   );
 
   const selectedNode = useMemo(
-    () => flattenedNodes.find(node => node.id === selectedNodeId) || flattenedNodes[0],
+    () =>
+      flattenedNodes.find(node => node.id === selectedNodeId && node.selectable !== false) ||
+      flattenedNodes.find(node => node.selectable !== false),
     [flattenedNodes, selectedNodeId]
   );
+
+  const getDefaultExpandedNodeIds = (nodes: TraceTreeNode[]): Set<string> =>
+    new Set(
+      nodes
+        .filter(node => node.kind === 'iteration-group')
+        .map(node => node.id)
+    );
 
   const flameTicks = useMemo(
     () => getTickList(selectedExecution?.totalDuration || 0),
@@ -246,7 +290,10 @@ function WorkflowTracePanel(): React.ReactElement {
         }
         const tree = buildTraceTree(result);
         setTraceTree(tree);
-        setSelectedNodeId(tree[0]?.id || '');
+        setExpandedNodeIds(getDefaultExpandedNodeIds(tree));
+        setSelectedNodeId(
+          flattenNodes(tree).find(node => node.selectable !== false)?.id || ''
+        );
       })
       .finally(() => {
         if (!cancelled) {
@@ -261,6 +308,18 @@ function WorkflowTracePanel(): React.ReactElement {
 
   const closePanel = () => {
     setWorkflowTracePanelOpen(false);
+  };
+
+  const toggleNode = (nodeId: string): void => {
+    setExpandedNodeIds(previous => {
+      const next = new Set(previous);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
   };
 
   const hasExecution = executions.length > 0;
@@ -331,7 +390,13 @@ function WorkflowTracePanel(): React.ReactElement {
               {loadingDetail ? (
                 <Spin />
               ) : traceTree.length > 0 ? (
-                renderTree(traceTree, selectedNodeId, node => setSelectedNodeId(node.id))
+                renderTree(
+                  traceTree,
+                  selectedNodeId,
+                  expandedNodeIds,
+                  node => setSelectedNodeId(node.id),
+                  toggleNode
+                )
               ) : (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 Trace 数据" />
               )}

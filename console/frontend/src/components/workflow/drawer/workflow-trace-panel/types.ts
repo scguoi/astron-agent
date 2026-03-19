@@ -11,7 +11,7 @@ export type TraceTreeNode = {
   id: string;
   name: string;
   type: string;
-  kind?: 'node' | 'model';
+  kind?: 'node' | 'model' | 'iteration-group' | 'iteration-run';
   status: TraceStatus;
   duration: number;
   offset: number;
@@ -25,6 +25,7 @@ export type TraceTreeNode = {
   output?: Record<string, unknown>;
   logs?: string[];
   modelName?: string;
+  selectable?: boolean;
   children?: TraceTreeNode[];
 };
 

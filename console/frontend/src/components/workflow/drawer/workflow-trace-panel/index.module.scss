@@ -135,6 +135,19 @@
   min-width: 0;
 }
 
+.treeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  color: #98a2b3;
+  font-size: 12px;
+}
+
+.treeTogglePlaceholder {
+  color: transparent;
+}
+
 .treeConnector {
   width: 10px;
   height: 1px;
@@ -155,10 +168,18 @@
   color: #ef4444;
 }
 
+.nodeIconGroup {
+  color: #6366f1;
+}
+
 .nodeName {
   color: #111827;
   font-size: 14px;
   white-space: nowrap;
+}
+
+.treeRowGroup .nodeName {
+  font-weight: 600;
 }
 
 .treeMeta {
