@@ -21,6 +21,7 @@ export type TraceTreeNode = {
   questionTokens?: number;
   firstFrameDuration?: number;
   input?: Record<string, unknown>;
+  config?: Record<string, unknown>;
   output?: Record<string, unknown>;
   logs?: string[];
   modelName?: string;
@@ -40,4 +41,8 @@ export type TraceExecutionSummary = {
   status: TraceStatus;
 };
 
-export type { WorkflowTraceExecutionItem, WorkflowTraceExecutionDetail, WorkflowTraceNode };
+export type {
+  WorkflowTraceExecutionItem,
+  WorkflowTraceExecutionDetail,
+  WorkflowTraceNode,
+};

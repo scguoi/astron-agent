@@ -32,6 +32,7 @@ export type WorkflowTraceNode = {
   status: unknown;
   usage?: WorkflowTraceUsage;
   input?: Record<string, unknown>;
+  config?: Record<string, unknown>;
   output?: Record<string, unknown>;
   logs?: string[];
 };

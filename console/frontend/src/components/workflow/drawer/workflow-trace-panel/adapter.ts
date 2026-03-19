@@ -55,15 +55,25 @@ const normalizeStatus = (status?: unknown): TraceStatus => {
   return 'running';
 };
 
-const isStartNode = (node: WorkflowTraceNode): boolean =>
-  (node.nodeId || '').startsWith('node-start::');
-
 const extractModelName = (node: WorkflowTraceNode): string | undefined => {
   const inputModel =
     typeof node.input?.model === 'string' ? (node.input.model as string) : '';
   const outputModel =
     typeof node.output?.model === 'string' ? (node.output.model as string) : '';
-  return inputModel || outputModel || undefined;
+  const config = node.config || {};
+  const configModelName =
+    typeof config.model_name === 'string' ? config.model_name : '';
+  const configModel = typeof config.model === 'string' ? config.model : '';
+  const configDomain = typeof config.domain === 'string' ? config.domain : '';
+
+  return (
+    inputModel ||
+    outputModel ||
+    configModelName ||
+    configModel ||
+    configDomain ||
+    undefined
+  );
 };
 
 const shouldCreateModelChild = (
@@ -71,16 +81,15 @@ const shouldCreateModelChild = (
   node: WorkflowTraceNode
 ): boolean => {
   const modelName = extractModelName(node);
-  if (!modelName || modelName === traceNode.name) {
-    return false;
-  }
   const source = `${traceNode.type} ${traceNode.name}`.toLowerCase();
   return (
     source.includes('llm') ||
     source.includes('模型') ||
     source.includes('大模型') ||
+    Boolean(modelName) ||
     Boolean(node.input?.model) ||
-    Boolean(node.output?.model)
+    Boolean(node.output?.model) ||
+    Boolean(node.config)
   );
 };
 
@@ -89,20 +98,54 @@ const getUsage = (usage?: {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
-}) => ({
+}): {
+  questionTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+} => ({
   questionTokens: usage?.questionTokens ?? 0,
   promptTokens: usage?.promptTokens ?? 0,
   completionTokens: usage?.completionTokens ?? 0,
   totalTokens: usage?.totalTokens ?? 0,
 });
 
+const HIDDEN_MODEL_CONFIG_KEYS = new Set([
+  'url',
+  'base_url',
+  'apikey',
+  'appId',
+  'source',
+  'node_id',
+]);
+
+const sanitizeModelConfig = (
+  value: unknown
+): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => !HIDDEN_MODEL_CONFIG_KEYS.has(key))
+  );
+};
+
+const buildModelChildOutput = (
+  node: WorkflowTraceNode
+): Record<string, unknown> => ({
+  usage: getUsage(node.usage),
+  output: node.output || {},
+});
+
 const toTraceNode = (
   execution: WorkflowTraceExecutionItem,
-  node: WorkflowTraceNode
+  node: WorkflowTraceNode,
+  displayId: string
 ): TraceTreeNode => {
   const usage = getUsage(node.usage);
   return {
-    id: node.id,
+    id: displayId,
     name: node.nodeName || node.nodeId || 'Unnamed Node',
     type: node.nodeType || 'unknown',
     kind: 'node',
@@ -115,6 +158,7 @@ const toTraceNode = (
     questionTokens: usage.questionTokens,
     firstFrameDuration: node.firstFrameDuration,
     input: node.input,
+    config: node.config,
     output: node.output,
     logs: node.logs,
     modelName: extractModelName(node),
@@ -140,50 +184,29 @@ export const buildTraceTree = (
     return [];
   }
 
-  const nodeMap = new Map<string, TraceTreeNode>();
-  const childIds = new Set<string>();
+  return detail.nodes.map((node, index) => {
+    const displayId = `${node.id}::${index}`;
+    const traceNode: TraceTreeNode = {
+      ...toTraceNode(detail.execution, node, displayId),
+      children: [],
+    };
 
-  detail.nodes.forEach(node => {
-    if (isStartNode(node)) {
-      return;
+    if (shouldCreateModelChild(traceNode, node)) {
+      traceNode.children = [
+        {
+          ...traceNode,
+          id: `${displayId}::model`,
+          name: 'model_name',
+          kind: 'model',
+          input: sanitizeModelConfig(node.config) || {},
+          output: buildModelChildOutput(node),
+          children: [],
+        },
+      ];
     }
-    nodeMap.set(node.id, { ...toTraceNode(detail.execution, node), children: [] });
+
+    return traceNode;
   });
-
-  detail.nodes.forEach(node => {
-    const currentNode = nodeMap.get(node.id);
-    if (!currentNode) {
-      return;
-    }
-    (node.nextLogIds || []).forEach(nextLogId => {
-      const childNode = nodeMap.get(nextLogId);
-      if (childNode) {
-        currentNode.children = currentNode.children || [];
-        currentNode.children.push(childNode);
-        childIds.add(childNode.id);
-      }
-    });
-
-    if (shouldCreateModelChild(currentNode, node)) {
-      currentNode.children = currentNode.children || [];
-      currentNode.children.push({
-        ...currentNode,
-        id: `${currentNode.id}::model`,
-        name: currentNode.modelName || '模型',
-        kind: 'model',
-        children: [],
-      });
-      childIds.add(`${currentNode.id}::model`);
-    }
-  });
-
-  const roots = Array.from(nodeMap.values()).filter(node => !childIds.has(node.id));
-
-  if (roots.length > 0) {
-    return roots;
-  }
-
-  return Array.from(nodeMap.values());
 };
 
 export const flattenNodes = (

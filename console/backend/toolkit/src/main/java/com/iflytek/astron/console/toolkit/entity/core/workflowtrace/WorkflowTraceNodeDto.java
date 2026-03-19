@@ -40,6 +40,8 @@ public class WorkflowTraceNodeDto {
 
     private Map<String, Object> input;
 
+    private Map<String, Object> config;
+
     private Map<String, Object> output;
 
     private List<String> logs = new ArrayList<>();

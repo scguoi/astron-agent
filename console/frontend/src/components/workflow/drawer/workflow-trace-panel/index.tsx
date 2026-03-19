@@ -3,7 +3,6 @@ import {
   AppstoreOutlined,
   CheckCircleFilled,
   CloseCircleFilled,
-  ClockCircleOutlined,
   EyeOutlined,
   FireOutlined,
   ReloadOutlined,
@@ -435,44 +434,6 @@ function WorkflowTracePanel(): React.ReactElement {
                   })}
                 />
               )}
-            </div>
-
-            <div className={styles.detailGrid}>
-              <div className={styles.detailCard}>
-                <div className={styles.detailLabel}>当前节点</div>
-                <div className={styles.detailValue}>{selectedNode?.name || '-'}</div>
-              </div>
-              <div className={styles.detailCard}>
-                <div className={styles.detailLabel}>状态</div>
-                <div className={styles.detailValue}>
-                  {selectedNode ? (
-                    <Tag color={selectedNode.status === 'success' ? 'success' : selectedNode.status === 'failed' ? 'error' : 'processing'}>
-                      {statusLabelMap[selectedNode.status]}
-                    </Tag>
-                  ) : (
-                    '-'
-                  )}
-                </div>
-              </div>
-              <div className={styles.detailCard}>
-                <div className={styles.detailLabel}>耗时</div>
-                <div className={styles.detailValue}>
-                  <ClockCircleOutlined className={styles.inlineIcon} />
-                  {formatDuration(selectedNode?.duration || 0)}
-                </div>
-              </div>
-              <div className={styles.detailCard}>
-                <div className={styles.detailLabel}>总 Token</div>
-                <div className={styles.detailValue}>{selectedNode?.totalTokens ?? 0}</div>
-              </div>
-              <div className={styles.detailCard}>
-                <div className={styles.detailLabel}>Prompt Tokens</div>
-                <div className={styles.detailValue}>{selectedNode?.promptTokens ?? 0}</div>
-              </div>
-              <div className={styles.detailCard}>
-                <div className={styles.detailLabel}>Completion Tokens</div>
-                <div className={styles.detailValue}>{selectedNode?.completionTokens ?? 0}</div>
-              </div>
             </div>
 
             <div className={styles.ioGrid}>
