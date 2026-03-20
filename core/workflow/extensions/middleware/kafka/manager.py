@@ -1,11 +1,10 @@
-import os
 from typing import Any, Optional
 
 from confluent_kafka import Producer  # type: ignore
 from loguru import logger
 
-from workflow.extensions.middleware.base import Service
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.configs import workflow_config
+from workflow.extensions.middleware.base import Service, ServiceType
 
 
 class KafkaProducerService(Service):
@@ -23,7 +22,7 @@ class KafkaProducerService(Service):
         :param config: Dictionary containing Kafka producer configuration parameters
         """
         self.config = config
-        if int(os.getenv("KAFKA_ENABLE", 0)) == 0:
+        if not workflow_config.kafka_config.kafka_enable:
             logger.info("❌ Kafka is disabled")
         else:
             self.producer = Producer(**config)
@@ -44,7 +43,7 @@ class KafkaProducerService(Service):
         topic: str,
         value: str,
         callback: Optional[Any] = None,
-        timeout: int = int(os.getenv("KAFKA_TIMEOUT", "10")),
+        timeout: int = workflow_config.kafka_config.kafka_timeout,
     ) -> None:
         """
         Send a message to the specified Kafka topic.
@@ -56,7 +55,7 @@ class KafkaProducerService(Service):
         :raises Exception: If message sending fails
         """
 
-        if int(os.getenv("KAFKA_ENABLE", 0)) == 0:
+        if not workflow_config.kafka_config.kafka_enable:
             return
 
         # Use default delivery report callback if none provided

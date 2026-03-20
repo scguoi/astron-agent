@@ -13,7 +13,6 @@ from starlette.responses import JSONResponse
 
 from workflow.domain.entities.node_debug_vo import CodeRunVo, NodeDebugVo
 from workflow.domain.entities.response import Resp
-from workflow.engine.entities.node_entities import NodeType
 from workflow.engine.entities.workflow_dsl import WorkflowDSL
 from workflow.engine.nodes.code.code_node import CodeNode
 from workflow.exception.e import CustomException
@@ -82,14 +81,13 @@ async def node_debug(node_debug_vo: NodeDebugVo) -> JSONResponse:
     span = Span()
     with span.start(attributes={"flow_id": node_debug_vo.id}) as span_context:
         try:
-            if (
-                node_debug_vo.data.nodes
-                and node_debug_vo.data.nodes[0].id.split("::")[0]
-                in NodeType.DATABASE.value
-            ):
-                span.uid = node_debug_vo.data.nodes[0].data.nodeParam.get("uid", "")
+            uid = (
+                node_debug_vo.data.nodes[0].data.nodeParam.get("uid", "")
+                if node_debug_vo.data.nodes
+                else ""
+            )
             node_debug_resp_vo = await flow_service.node_debug(
-                node_debug_vo.data, node_debug_vo.id, span_context
+                node_debug_vo.data, node_debug_vo.id, uid, span_context
             )
 
         except CustomException as err:

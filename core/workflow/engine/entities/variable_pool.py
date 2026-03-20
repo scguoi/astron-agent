@@ -261,11 +261,6 @@ class VariablePool:
         """
         self.input_variable_mapping: Dict[str, Any] = {}
         self.output_variable_mapping: Dict[str, Any] = {}
-        if not protocol:
-            raise CustomException(
-                err_code=CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
-                err_msg="Node configuration information not found",
-            )
         self.nodes = protocol
         self.protocol_inputs_parser()
         self.protocol_outputs_parser()
@@ -346,12 +341,6 @@ class VariablePool:
         """
         for node in self.nodes:
             node_id = node.id
-            if not node_id:
-                raise CustomException(
-                    err_code=CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
-                    err_msg="Node ID is empty",
-                    cause_error="Node ID is empty",
-                )
             node_inputs = node.data.inputs
 
             for node_input in node_inputs:

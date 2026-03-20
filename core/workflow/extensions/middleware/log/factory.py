@@ -53,7 +53,7 @@ class LogServiceFactory(ServiceFactory):
         # Add file handler with log level and relative path
         logger.add(
             log_path,
-            enqueue=True,
+            enqueue=False,  # Disable multi-process safety for performance
             rotation="100 MB",  # Automatically split log files when size exceeds 100MB
             retention="10 days",  # Retain logs for 10 days
             compression="zip",  # Optional: compress old log files

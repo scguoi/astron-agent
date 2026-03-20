@@ -23,7 +23,7 @@ from workflow.domain.entities.response import Streaming
 from workflow.engine.callbacks.openai_types_sse import LLMGenerate
 from workflow.exception.e import CustomException
 from workflow.exception.errors.err_code import CodeEnum
-from workflow.extensions.middleware.getters import get_session
+from workflow.extensions.middleware.database.utils import session_getter
 from workflow.extensions.otlp.metric.meter import Meter
 from workflow.extensions.otlp.trace.span import Span
 from workflow.service import app_service, audit_service, chat_service, flow_service
@@ -51,26 +51,25 @@ async def chat_debug(
     ) as span_context:
         m.set_label("flow_id", chat_vo.flow_id)
         try:
-            session = next(get_session())
-
-            db_flow = flow_service.get_flow_by_version(
-                chat_vo.flow_id, session, span_context, chat_vo.version
-            )
-            spark_dsl = db_flow.data
-
-            app_info = await app_service.get_info(app_id, session, span)
-
-            if not os.getenv("RUNTIME_ENV", RuntimeEnv.Local.value) in [
-                RuntimeEnv.Dev.value,
-                RuntimeEnv.Test.value,
-            ]:
-                # Replace app_id, api_key, api_secret in protocol
-                db_flow.data = chat_service.change_dsl_triplets(
-                    spark_dsl,
-                    app_id=app_id,
-                    api_key=app_info.api_key,
-                    api_secret=app_info.api_secret,
+            with session_getter(auto_commit=False) as session:
+                db_flow = flow_service.get_flow_by_version(
+                    chat_vo.flow_id, session, span_context, chat_vo.version
                 )
+                spark_dsl = db_flow.data
+
+                app_info = await app_service.get_info(app_id, session, span)
+
+                if os.getenv("RUNTIME_ENV", RuntimeEnv.Local.value) not in [
+                    RuntimeEnv.Dev.value,
+                    RuntimeEnv.Test.value,
+                ]:
+                    # Replace app_id, api_key, api_secret in protocol
+                    db_flow.data = chat_service.change_dsl_triplets(
+                        spark_dsl,
+                        app_id=app_id,
+                        api_key=app_info.api_key,
+                        api_secret=app_info.api_secret,
+                    )
 
             event = Event(
                 flow_id=chat_vo.flow_id,
@@ -165,9 +164,10 @@ async def resume_debug(request: ResumeVo) -> Union[StreamingResponse, JSONRespon
                 )
 
             # Input audit
-            session = next(get_session())
-            app_info = await app_service.get_info(event.app_id, session, span)
-            if app_info.audit_policy == AppAuditPolicy.AGENT_PLATFORM.value:
+            with session_getter(auto_commit=False) as session:
+                app_info = await app_service.get_info(event.app_id, session, span)
+                audit_policy_value = app_info.audit_policy
+            if audit_policy_value == AppAuditPolicy.AGENT_PLATFORM.value:
                 await audit_service.input_audit(content, span)
 
             await EventRegistry().write_resume_data(
@@ -182,7 +182,7 @@ async def resume_debug(request: ResumeVo) -> Union[StreamingResponse, JSONRespon
                 chat_service.chat_resume_response_stream(
                     span=span_context,
                     event_id=event_id,
-                    audit_policy=app_info.audit_policy,
+                    audit_policy=audit_policy_value,
                     is_release=False,
                 ),
             )

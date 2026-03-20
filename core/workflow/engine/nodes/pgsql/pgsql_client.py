@@ -74,7 +74,7 @@ class PGSqlClient:
         url = self.config.url
         if url is None:
             raise CustomException(
-                CodeEnum.ENG_RUN_ERROR,
+                CodeEnum.PG_SQL_NODE_EXECUTION_ERROR,
                 err_msg="PGSQL_URL environment variable is not set",
             )
         # Prepare request payload and headers

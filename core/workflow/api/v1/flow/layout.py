@@ -285,8 +285,8 @@ def get_flow_info(
         attributes={"flow_id": flow_id},
     ) as current_span:
         try:
-            published_flow = flow_service.get_latest_published_flow_by(
-                flow_id, app_alias_id, session, current_span
+            published_flow = flow_service.get_latest_published(
+                flow_id, session, current_span
             )
             mcp_input_schema = flow_service.gen_mcp_input_schema(published_flow)
         except CustomException as err:

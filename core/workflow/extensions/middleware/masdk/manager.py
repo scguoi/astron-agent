@@ -3,8 +3,7 @@ from typing import Any, List, Optional
 
 from workflow.engine.callbacks.openai_types_sse import LLMGenerate
 from workflow.exception.errors.err_code import CodeEnum
-from workflow.extensions.middleware.base import Service
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.extensions.middleware.base import Service, ServiceType
 
 
 class MASDKService(Service):

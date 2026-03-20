@@ -3,8 +3,6 @@ from pydantic import BaseModel, Field
 from workflow.domain.entities.chat import HistoryItem
 from workflow.infra.providers.llm.iflytek_spark.schemas import SparkAiMessage
 
-TOKEN_LIMITED = 0.95
-
 
 class History(BaseModel):
     """
@@ -24,9 +22,7 @@ class History(BaseModel):
         self.origin_history = history
 
     @staticmethod
-    def process_history(
-        data: list[HistoryItem], max_token: int, rounds: int
-    ) -> list[HistoryItem]:
+    def process_history(data: list[HistoryItem], rounds: int) -> list[HistoryItem]:
         """
         Process history data with token and round limitations.
 
@@ -56,12 +52,8 @@ class History(BaseModel):
             array=others_group, rounds=rounds
         )
 
-        # Step 5: Limit by tokens
-        array_after_tokens = ProcessArrayMethod.process_array_by_token(
-            array=array_after_rounds, max_token=max_token
-        )
-        # Step 6: Combine history
-        images.extend(ProcessArrayMethod.ungroup_array(array_after_tokens))
+        # Step 5: Combine history
+        images.extend(ProcessArrayMethod.ungroup_array(array_after_rounds))
         return images
 
     @staticmethod
@@ -94,19 +86,6 @@ class ProcessArrayMethod:
     """
 
     @staticmethod
-    def calculate_message_token(message: list | dict) -> int:
-        """
-        Calculate approximate token count for a message.
-
-        :param message: Message to calculate tokens for
-        :return: Approximate token count
-        """
-        # current_utf8_length += len(str(message).encode('utf-8'))
-        # TO DEBUG
-        current_utf8_length = int(len(str(message)) * 1.5)
-        return current_utf8_length
-
-    @staticmethod
     def group_array_by_quantity(array: list, quantity: int) -> list:
         """
         Group array elements by specified quantity.
@@ -126,26 +105,6 @@ class ProcessArrayMethod:
         :return: Flattened array
         """
         return [item for sublist in array for item in sublist]
-
-    @staticmethod
-    def process_array_by_token(array: list, max_token: int) -> list:
-        """
-        Process array by removing elements until token limit is satisfied.
-
-        :param array: Array to process
-        :param max_token: Maximum token limit
-        :return: Processed array within token limit
-        """
-        result: list = []
-        if not array:
-            return result
-        token_limited = int(max_token * TOKEN_LIMITED)
-        token = ProcessArrayMethod.calculate_message_token(array)
-        while array and token > token_limited:
-            array.pop(0)
-            token = ProcessArrayMethod.calculate_message_token(array)
-        result = array
-        return result
 
     @staticmethod
     def process_array_by_rounds(array: list, rounds: int) -> list:

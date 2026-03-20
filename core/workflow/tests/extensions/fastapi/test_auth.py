@@ -22,7 +22,7 @@ from workflow.extensions.fastapi.middleware.auth import AuthMiddleware
 pytestmark = pytest.mark.asyncio
 
 
-def create_mock_span_context() -> tuple[AsyncMock, Mock]:
+def create_mock_span_context() -> tuple[Mock, Mock]:
     """Create a properly configured mock span context."""
     mock_span_ctx = Mock()
     mock_span_ctx.__enter__ = Mock(return_value=mock_span_ctx)
@@ -31,7 +31,7 @@ def create_mock_span_context() -> tuple[AsyncMock, Mock]:
     mock_span_ctx.record_exception = Mock()
     mock_span_ctx.add_info_event_async = Mock()
 
-    mock_span = AsyncMock()
+    mock_span = Mock()
     mock_span.start.return_value = mock_span_ctx
 
     return mock_span, mock_span_ctx
@@ -471,7 +471,7 @@ class TestAuthMiddleware:
         expected_api_key: str,
     ) -> None:
         """Test API key parsing from authorization header."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.object(auth_middleware, "_get_app_id_with_cache") as mock_get_cache:
             mock_get_cache.return_value = None
@@ -507,7 +507,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware, authorization_header: str
     ) -> None:
         """Test _get_app_source_detail_with_api_key with invalid authorization formats."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.dict(
             os.environ,
@@ -546,7 +546,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware
     ) -> None:
         """Test _get_app_source_detail_with_api_key returns cached result."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.object(auth_middleware, "_get_app_id_with_cache") as mock_get_cache:
             mock_get_cache.return_value = "cached_app_id"
@@ -567,7 +567,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware
     ) -> None:
         """Test _get_app_source_detail_with_api_key with HTTP error status."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.object(auth_middleware, "_get_app_id_with_cache") as mock_get_cache:
             mock_get_cache.return_value = None
@@ -587,7 +587,7 @@ class TestAuthMiddleware:
                     exc_info.value.code
                     == CodeEnum.APP_GET_WITH_REMOTE_FAILED_ERROR.code
                 )
-                mock_span.add_info_event_async.assert_called_once_with(
+                await mock_span.add_info_event_async.assert_called_once_with(
                     "Application management platform response: Not found"
                 )
 
@@ -608,7 +608,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware, response_code: int, expected_error: str
     ) -> None:
         """Test _get_app_source_detail_with_api_key with various API error codes."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.object(auth_middleware, "_get_app_id_with_cache") as mock_get_cache:
             mock_get_cache.return_value = None
@@ -649,7 +649,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware, response_data: dict, expected_appid: str
     ) -> None:
         """Test _get_app_source_detail_with_api_key with valid API responses."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.object(auth_middleware, "_get_app_id_with_cache") as mock_get_cache:
             mock_get_cache.return_value = None
@@ -689,7 +689,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware, response_data: dict
     ) -> None:
         """Test _get_app_source_detail_with_api_key with missing or invalid appid."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
 
         with patch.object(auth_middleware, "_get_app_id_with_cache") as mock_get_cache:
             mock_get_cache.return_value = None
@@ -734,7 +734,7 @@ class TestAuthMiddleware:
         self, auth_middleware: AuthMiddleware
     ) -> None:
         """Test that _get_app_source_detail_with_api_key calls _gen_app_auth_header."""
-        mock_span = AsyncMock()
+        mock_span = Mock()
         auth_middleware.api_key = "test_key"
         auth_middleware.api_secret = "test_secret"
 

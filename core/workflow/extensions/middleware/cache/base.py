@@ -2,7 +2,7 @@ import abc
 from enum import Enum
 from typing import Any, Dict
 
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.extensions.middleware.base import ServiceType
 
 
 class RedisModel(Enum):
@@ -175,6 +175,29 @@ class BaseCacheService(abc.ABC):
 
         Args:
             key: The key of the item to remove.
+        """
+
+    @abc.abstractmethod
+    def set_ex(self, key: str, value: Any, expire_time: int) -> None:
+        """
+        Set a key with a specific expiration time.
+
+        Args:
+            key: The key of the item.
+            value: The value to cache.
+            expire_time: Expiration time in seconds.
+        """
+
+    @abc.abstractmethod
+    def scan_keys(self, pattern: str) -> list:
+        """
+        Scan for keys matching a pattern.
+
+        Args:
+            pattern: The glob-style pattern to match keys against.
+
+        Returns:
+            A list of matching key strings.
         """
 
     @abc.abstractmethod

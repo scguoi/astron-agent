@@ -107,7 +107,9 @@ class CodeNode(BaseNode):
                 ),
             )
         except Exception as err:
-            return self.fail(err, CodeEnum.CODE_EXECUTION_ERROR, span)
+            return self.fail(
+                CustomException(CodeEnum.CODE_EXECUTION_ERROR, cause_error=err), span
+            )
 
     async def execute_code(self, parameters: dict, span_context: Span) -> dict:
         """

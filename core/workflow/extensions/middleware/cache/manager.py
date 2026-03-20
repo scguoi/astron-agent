@@ -253,11 +253,51 @@ class RedisCache(BaseCacheService, Service):
         """
         self._client.delete(key)
 
+    def set_ex(self, key: str, value: Any, expire_time: int) -> None:
+        """
+        Set a key with a specific expiration time.
+
+        Args:
+            key: The key of the item.
+            value: The value to cache.
+            expire_time: Expiration time in seconds.
+        """
+        try:
+            if pickled := pickle.dumps(value):
+                result = self._client.setex(key, expire_time, pickled)
+                if not result:
+                    raise ValueError("RedisCache could not set the value.")
+        except TypeError as exc:
+            raise TypeError(
+                "RedisCache only accepts values that can be pickled. "
+            ) from exc
+
     def clear(self) -> None:
         """
         Clear all items from the cache.
         """
         self._client.flushdb()
+
+    def scan_keys(self, pattern: str) -> list:
+        """
+        Scan for keys matching a pattern.
+
+        Args:
+            pattern: The glob-style pattern to match keys against.
+
+        Returns:
+            A list of matching key strings.
+        """
+        result = []
+        cursor = 0
+        while True:
+            cursor, keys = self._client.scan(cursor=cursor, match=pattern, count=100)
+            for key in keys:
+                key_str = key.decode("utf-8") if isinstance(key, bytes) else key
+                result.append(key_str)
+            if cursor == 0:
+                break
+        return result
 
     def pipeline(self) -> Any:
         """

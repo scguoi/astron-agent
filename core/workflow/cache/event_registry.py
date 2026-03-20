@@ -44,6 +44,8 @@ class Event(BaseModel):
     status: str = ChatStatus.RUNNING.value
     timeout: int = 180
     interrupt_node: str = ""
+    is_async: bool = False
+    execute_id: str = ""
 
     def get_workflow_q_name(self) -> str:
         """
@@ -76,8 +78,8 @@ class EventRegistry(BaseShutdownEvent):
         return True
 
     @classmethod
-    def _event_key(cls) -> str:
-        return f"{_EVENT_PREFIX}:"
+    def _event_key(cls, event_id: str) -> str:
+        return f"{_EVENT_PREFIX}:{event_id}"
 
     @classmethod
     def _encode(cls, event: Event) -> str:
@@ -90,14 +92,13 @@ class EventRegistry(BaseShutdownEvent):
     @classmethod
     def save_event(cls, event: Event) -> None:
         """
-        Save event to cache service.
+        Save event to cache service with per-event TTL.
 
         :param cls: Class itself
         :param event: Event object to save
         """
-        get_cache_service().hash_set_ex(
-            name=cls._event_key(),
-            key=event.event_id,
+        get_cache_service().set_ex(
+            key=cls._event_key(event.event_id),
             value=cls._encode(event),
             expire_time=event.timeout,
         )
@@ -117,6 +118,26 @@ class EventRegistry(BaseShutdownEvent):
             raise e
 
     @classmethod
+    def lock_event(cls, event_id: str, sid: str, timeout: int = 180) -> None:
+        get_cache_service().set(
+            key=f"event_lock:{event_id}",
+            value=f"locked_by_{sid}",
+        )
+
+    @classmethod
+    def unlock_event(cls, event_id: str) -> None:
+        if not cls.check_event_lock(event_id=event_id):
+            raise CustomException(err_code=CodeEnum.EVENT_REGISTRY_NOT_LOCK_ERROR)
+        get_cache_service().delete(key=f"event_lock:{event_id}")
+
+    @classmethod
+    def check_event_lock(cls, event_id: str) -> bool:
+        data = get_cache_service().get(key=f"event_lock:{event_id}")
+        if not data:
+            return False
+        return True
+
+    @classmethod
     def get_event(cls, event_id: str) -> Event:
         """
         Get event information by event ID.
@@ -125,7 +146,7 @@ class EventRegistry(BaseShutdownEvent):
         :param event_id: Event ID string
         :return: Decoded event object if found, raises exception otherwise
         """
-        data = get_cache_service().hash_get(name=cls._event_key(), key=event_id)
+        data = get_cache_service().get(key=cls._event_key(event_id))
         if not data:
             raise CustomException(err_code=CodeEnum.EVENT_REGISTRY_NOT_FOUND_ERROR)
         return cls._decode(data)
@@ -138,7 +159,7 @@ class EventRegistry(BaseShutdownEvent):
         :param cls: Class itself for accessing class variables and methods
         :param event_id: ID of the event to delete
         """
-        get_cache_service().hash_del(cls._event_key(), event_id)
+        get_cache_service().delete(cls._event_key(event_id))
 
     @classmethod
     def get_all_event_ids(cls) -> dict:
@@ -147,7 +168,16 @@ class EventRegistry(BaseShutdownEvent):
 
         :return: Dictionary containing all event IDs
         """
-        return get_cache_service().hash_get_all(cls._event_key())
+        cache = get_cache_service()
+        result = {}
+        prefix = f"{_EVENT_PREFIX}:"
+        keys = cache.scan_keys(pattern=f"{prefix}*")
+        for key_str in keys:
+            event_id = key_str[len(prefix) :]
+            # Skip queue keys (they contain extra ':' segments like :flow or :metadata)
+            if ":" not in event_id:
+                result[event_id] = True
+        return result
 
     @classmethod
     def update_event(cls, event_id: str, key: str, value: Any) -> None:

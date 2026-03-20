@@ -83,6 +83,7 @@ def init_trace(
     max_export_batch_size: int = 512,
     export_timeout_millis: int = 30000,
     span_limit: int = 1000,
+    headers: str | None = None,
 ) -> None:
     """
     Initialize OpenTelemetry tracing with OTLP exporter and file exporter.
@@ -95,6 +96,7 @@ def init_trace(
     :param max_export_batch_size: Maximum batch size for BatchSpanProcessor data export (default: 512)
     :param export_timeout_millis: Maximum allowed time for data export from BatchSpanProcessor (default: 30000)
     :param span_limit: Maximum number of spans that can be tracked per tracer (default: 1000)
+    :param headers: headers as string, will be converted to "key=value" format string
     """
     # Validate required parameters
     assert endpoint is not None, "otlp endpoint is None"
@@ -117,7 +119,11 @@ def init_trace(
 
     # Create OTLP exporter for remote trace export
     if os.getenv("OTLP_ENABLE", "0") == "1":
-        exporter = OTLPSpanExporter(insecure=True, endpoint=endpoint, timeout=timeout)
+        if headers:
+            headers = ",".join([f"{k}={v}" for k, v in json.loads(headers).items()])
+        exporter = OTLPSpanExporter(
+            insecure=True, endpoint=endpoint, timeout=timeout, headers=headers
+        )
         processor = BatchSpanProcessor(
             exporter,
             max_queue_size=max_queue_size,
