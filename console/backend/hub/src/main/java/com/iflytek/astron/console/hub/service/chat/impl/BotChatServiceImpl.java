@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollectionUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.iflytek.astron.console.commons.constant.ResponseEnum;
 import com.iflytek.astron.console.commons.dto.bot.ChatBotReqDto;
 import com.iflytek.astron.console.commons.dto.bot.DebugChatBotReqDto;
@@ -16,13 +17,16 @@ import com.iflytek.astron.console.commons.entity.chat.ChatReqRecords;
 import com.iflytek.astron.console.commons.enums.ShelfStatusEnum;
 import com.iflytek.astron.console.commons.enums.bot.BotTypeEnum;
 import com.iflytek.astron.console.commons.exception.BusinessException;
+import com.iflytek.astron.console.commons.response.ApiResult;
 import com.iflytek.astron.console.commons.service.bot.BotService;
 import com.iflytek.astron.console.commons.service.bot.ChatBotDataService;
 import com.iflytek.astron.console.commons.service.data.ChatDataService;
 import com.iflytek.astron.console.commons.service.data.ChatHistoryService;
 import com.iflytek.astron.console.commons.service.data.ChatListDataService;
+import com.iflytek.astron.console.commons.service.data.UserLangChainDataService;
 import com.iflytek.astron.console.commons.service.workflow.WorkflowBotChatService;
 import com.iflytek.astron.console.commons.util.I18nUtil;
+import com.iflytek.astron.console.commons.util.RequestContextUtil;
 import com.iflytek.astron.console.commons.util.SseEmitterUtil;
 import com.iflytek.astron.console.commons.util.space.SpaceInfoUtil;
 import com.iflytek.astron.console.hub.data.ReqKnowledgeRecordsDataService;
@@ -34,9 +38,11 @@ import com.iflytek.astron.console.hub.service.bot.PersonalityConfigService;
 import com.iflytek.astron.console.hub.service.chat.BotChatService;
 import com.iflytek.astron.console.hub.service.chat.ChatListService;
 import com.iflytek.astron.console.hub.service.knowledge.KnowledgeService;
+import com.iflytek.astron.console.toolkit.entity.biz.modelconfig.ModelDto;
 import com.iflytek.astron.console.toolkit.entity.vo.CategoryTreeVO;
 import com.iflytek.astron.console.toolkit.entity.vo.LLMInfoVo;
 import com.iflytek.astron.console.toolkit.service.model.ModelService;
+import com.iflytek.astron.console.toolkit.service.workflow.WorkflowService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,6 +97,12 @@ public class BotChatServiceImpl implements BotChatService {
     private ModelService modelService;
 
     @Autowired
+    private WorkflowService workflowService;
+
+    @Autowired
+    private UserLangChainDataService userLangChainDataService;
+
+    @Autowired
     private PromptChatService promptChatService;
 
     @Autowired
@@ -115,18 +127,19 @@ public class BotChatServiceImpl implements BotChatService {
 
             BotConfiguration botConfig = getBotConfiguration(chatBotReqDto.getBotId());
             if (botConfig.version.equals(BotTypeEnum.WORKFLOW_BOT.getType()) || botConfig.version.equals(BotTypeEnum.TALK.getType())) {
+                syncWorkflowRuntimeModel(chatBotReqDto.getBotId(), botConfig, sseEmitter);
                 workflowBotChatService.chatWorkflowBot(chatBotReqDto, sseEmitter, sseId, workflowOperation, workflowVersion);
             } else {
-                int maxInputTokens = this.maxInputTokens;
                 ChatReqRecords chatReqRecords = createChatRequest(chatBotReqDto);
-                if (botConfig.modelId == null) {
+                ModelConfigResult modelConfig = resolveChatModelConfiguration(botConfig.modelId, botConfig.model, sseEmitter);
+                int maxInputTokens = modelConfig == null ? this.maxInputTokens : modelConfig.maxInputTokens();
+                if (modelConfig == null) {
                     List<SparkChatRequest.MessageDto> messages = buildMessageList(chatBotReqDto, botConfig.supportContext, botConfig.supportDocument, botConfig.prompt, maxInputTokens, chatReqRecords.getId());
                     ProviderToolOrchestrator.ToolExecutionPlan toolPlan =
                             ProviderToolOrchestrator.resolve(ProviderToolOrchestrator.PROVIDER_SPARK, botConfig.openedTool);
                     SparkChatRequest sparkChatRequest = buildSparkChatRequest(chatBotReqDto, botConfig.model, messages, toolPlan);
                     sparkChatService.chatStream(sparkChatRequest, sseEmitter, sseId, chatReqRecords, false, false);
                 } else {
-                    ModelConfigResult modelConfig = getModelConfiguration(botConfig.modelId, sseEmitter);
                     List<SparkChatRequest.MessageDto> messages = buildMessageList(chatBotReqDto, botConfig.supportContext, botConfig.supportDocument, botConfig.prompt, modelConfig.maxInputTokens(), chatReqRecords.getId());
                     ProviderToolOrchestrator.ToolExecutionPlan toolPlan =
                             ProviderToolOrchestrator.resolve(modelConfig.llmInfoVo().getProvider(), botConfig.openedTool);
@@ -166,20 +179,20 @@ public class BotChatServiceImpl implements BotChatService {
             chatBotReqDto.setUid(chatReqRecords.getUid());
             chatBotReqDto.setAsk(chatReqRecords.getMessage());
             chatBotReqDto.setEdit(true);
-            int maxInputTokens = this.maxInputTokens;
-            if (botConfig.modelId == null) {
+            ModelConfigResult modelConfig = resolveChatModelConfiguration(botConfig.modelId, botConfig.model, sseEmitter);
+            int maxInputTokens = modelConfig == null ? this.maxInputTokens : modelConfig.maxInputTokens();
+            if (modelConfig == null) {
                 List<SparkChatRequest.MessageDto> messages = buildMessageList(chatBotReqDto, botConfig.supportContext, botConfig.supportDocument, botConfig.prompt, maxInputTokens, chatReqRecords.getId());
                 ProviderToolOrchestrator.ToolExecutionPlan toolPlan =
                         ProviderToolOrchestrator.resolve(ProviderToolOrchestrator.PROVIDER_SPARK, botConfig.openedTool);
                 SparkChatRequest sparkChatRequest = buildSparkChatRequest(chatBotReqDto, botConfig.model, messages, toolPlan);
                 sparkChatService.chatStream(sparkChatRequest, sseEmitter, sseId, chatReqRecords, true, false);
             } else {
-                ModelConfigResult modelConfig = getModelConfiguration(botConfig.modelId, sseEmitter);
                 List<SparkChatRequest.MessageDto> messages = buildMessageList(chatBotReqDto, botConfig.supportContext, botConfig.supportDocument, botConfig.prompt, modelConfig.maxInputTokens(), chatReqRecords.getId());
                 ProviderToolOrchestrator.ToolExecutionPlan toolPlan =
                         ProviderToolOrchestrator.resolve(modelConfig.llmInfoVo().getProvider(), botConfig.openedTool);
                 JSONObject jsonObject = buildPromptChatRequest(
-                        modelConfig.llmInfoVo,
+                        modelConfig.llmInfoVo(),
                         messages,
                         toolPlan,
                         chatBotReqDto.getAsk(),
@@ -202,11 +215,12 @@ public class BotChatServiceImpl implements BotChatService {
     @Override
     public void debugChatMessageBot(DebugChatBotReqDto request, SseEmitter sseEmitter, String sseId) {
         try {
-            int maxInputTokens = this.maxInputTokens;
             List<SparkChatRequest.MessageDto> messageList;
             // get personality config prompt
             String prompt = personalityConfigService.getChatPrompt(request.getPersonalityConfig(), request.getPrompt());
-            if (request.getModelId() == null) {
+            ModelConfigResult modelConfig = resolveChatModelConfiguration(request.getModelId(), request.getModel(), sseEmitter);
+            int maxInputTokens = modelConfig == null ? this.maxInputTokens : modelConfig.maxInputTokens();
+            if (modelConfig == null) {
                 messageList = buildDebugMessageList(request.getText(), prompt, request.getMessages(), maxInputTokens, request.getMaasDatasetList());
                 ProviderToolOrchestrator.ToolExecutionPlan toolPlan =
                         ProviderToolOrchestrator.resolve(ProviderToolOrchestrator.PROVIDER_SPARK, request.getOpenedTool());
@@ -220,7 +234,6 @@ public class BotChatServiceImpl implements BotChatService {
                         toolPlan);
                 sparkChatService.chatStream(sparkChatRequest, sseEmitter, sseId, null, false, true);
             } else {
-                ModelConfigResult modelConfig = getModelConfiguration(request.getModelId(), sseEmitter);
                 messageList = buildDebugMessageList(request.getText(), prompt, request.getMessages(), modelConfig.maxInputTokens(), request.getMaasDatasetList());
                 Long spaceId = SpaceInfoUtil.getSpaceId();
                 if (!modelService.checkModelBase(modelConfig.llmInfoVo().getLlmId(),
@@ -293,10 +306,75 @@ public class BotChatServiceImpl implements BotChatService {
         if (llmInfoVo == null) {
             throw new BusinessException(ResponseEnum.MODEL_NOT_EXIST);
         }
+        return buildModelConfigResult(llmInfoVo);
+    }
 
+    private ModelConfigResult resolveChatModelConfiguration(Long modelId, String model, SseEmitter sseEmitter) {
+        if (modelId != null) {
+            return getModelConfiguration(modelId, sseEmitter);
+        }
+        if (isSparkModel(model)) {
+            return null;
+        }
+        return getModelConfigurationByDomain(model, sseEmitter);
+    }
+
+    private ModelConfigResult getModelConfigurationByDomain(String modelDomain, SseEmitter sseEmitter) {
+        ModelDto modelDto = new ModelDto();
+        modelDto.setType(0);
+        modelDto.setPage(1);
+        modelDto.setPageSize(1000);
+        modelDto.setUid(RequestContextUtil.getUID());
+        modelDto.setSpaceId(SpaceInfoUtil.getSpaceId());
+        ApiResult<Page<LLMInfoVo>> listResult = modelService.getList(modelDto, null);
+        Page<LLMInfoVo> page = listResult == null ? null : listResult.data();
+        if (page == null || page.getRecords() == null) {
+            log.error("Failed to get model list for domain: {}", modelDomain);
+            SseEmitterUtil.completeWithError(sseEmitter, "Failed to get model config");
+            throw new BusinessException(ResponseEnum.MODEL_CHECK_FAILED);
+        }
+        for (LLMInfoVo llmInfoVo : page.getRecords()) {
+            if (llmInfoVo == null) {
+                continue;
+            }
+            if (StringUtils.equalsIgnoreCase(modelDomain, llmInfoVo.getDomain())
+                    || StringUtils.equalsIgnoreCase(modelDomain, llmInfoVo.getServiceId())) {
+                return buildModelConfigResult(llmInfoVo);
+            }
+        }
+        log.error("Failed to match model config by domain: {}", modelDomain);
+        SseEmitterUtil.completeWithError(sseEmitter, "Failed to get model config");
+        throw new BusinessException(ResponseEnum.MODEL_CHECK_FAILED);
+    }
+
+    private void syncWorkflowRuntimeModel(Integer botId, BotConfiguration botConfig, SseEmitter sseEmitter) {
+        if (botId == null || botConfig == null) {
+            return;
+        }
+        ModelConfigResult modelConfigResult = resolveChatModelConfiguration(botConfig.modelId, botConfig.model, sseEmitter);
+        if (modelConfigResult == null) {
+            return;
+        }
+        var userLangChainInfo = userLangChainDataService.findOneByBotId(botId);
+        if (userLangChainInfo == null || StringUtils.isBlank(userLangChainInfo.getFlowId())) {
+            return;
+        }
+        workflowService.syncWorkflowModelConfig(userLangChainInfo.getFlowId(), modelConfigResult.llmInfoVo());
+    }
+
+    private boolean isSparkModel(String model) {
+        if (StringUtils.isBlank(model)) {
+            return true;
+        }
+        return "spark".equalsIgnoreCase(model)
+                || "x1".equalsIgnoreCase(model)
+                || "generalv3.5".equalsIgnoreCase(model);
+    }
+
+    private ModelConfigResult buildModelConfigResult(LLMInfoVo llmInfoVo) {
         int maxInputTokens = this.maxInputTokens;
         List<CategoryTreeVO> categoryTree = llmInfoVo.getCategoryTree();
-        if (!categoryTree.isEmpty()) {
+        if (categoryTree != null && !categoryTree.isEmpty()) {
             for (CategoryTreeVO categoryTreeVO : categoryTree) {
                 if ("contextLengthTag".equals(categoryTreeVO.getKey())) {
                     maxInputTokens = Integer.parseInt(categoryTreeVO.getName().replace("k", "")) * 1000;
@@ -304,7 +382,6 @@ public class BotChatServiceImpl implements BotChatService {
                 }
             }
         }
-
         return new ModelConfigResult(llmInfoVo, maxInputTokens);
     }
 

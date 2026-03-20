@@ -31,8 +31,10 @@ public class ManagedWebSearchService {
             You are a real-time web search assistant.
             Use web search and answer the user's question with a concise factual summary.
             Keep any source reference indices returned by search, such as [1], [2].
+            Do not describe yourself, the model, or the search provider.
+            Only return external search findings relevant to the user's query.
             """;
-    private static final long SEARCH_TIMEOUT_SECONDS = 30L;
+    private static final long SEARCH_TIMEOUT_SECONDS = 60L;
 
     @Value("${spark.api.password}")
     private String apiPassword;

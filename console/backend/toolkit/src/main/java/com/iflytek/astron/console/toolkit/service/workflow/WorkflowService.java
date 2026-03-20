@@ -3867,6 +3867,174 @@ public class WorkflowService extends ServiceImpl<WorkflowMapper, Workflow> {
         return null;
     }
 
+    public boolean syncWorkflowModelConfig(String flowId, LLMInfoVo llmInfoVo) {
+        if (StringUtils.isBlank(flowId) || llmInfoVo == null) {
+            return false;
+        }
+        Workflow workflow = this.getOne(new LambdaQueryWrapper<Workflow>()
+                .eq(Workflow::getFlowId, flowId)
+                .eq(Workflow::getDeleted, false));
+        if (workflow == null || StringUtils.isBlank(workflow.getData())) {
+            log.warn("Skip syncing workflow model config, flow not found or empty, flowId={}", flowId);
+            return false;
+        }
+
+        BizWorkflowData bizWorkflowData = JSON.parseObject(workflow.getData(), BizWorkflowData.class);
+        if (bizWorkflowData == null || CollectionUtils.isEmpty(bizWorkflowData.getNodes())) {
+            return false;
+        }
+
+        String workflowSource = normalizeWorkflowModelSource(llmInfoVo);
+        String serviceId = resolveWorkflowServiceId(llmInfoVo);
+        boolean changed = false;
+        for (BizWorkflowNode node : bizWorkflowData.getNodes()) {
+            changed |= syncWorkflowNodeModel(node, llmInfoVo, workflowSource, serviceId);
+        }
+
+        if (!changed) {
+            return false;
+        }
+
+        workflow.setData(JSON.toJSONString(bizWorkflowData));
+        workflow.setUpdateTime(new Date());
+        this.updateById(workflow);
+        saveRemote(buildWorkflowReqForModelSync(workflow, bizWorkflowData, llmInfoVo), flowId);
+        return true;
+    }
+
+    private WorkflowReq buildWorkflowReqForModelSync(Workflow workflow, BizWorkflowData bizWorkflowData, LLMInfoVo llmInfoVo) {
+        WorkflowReq workflowReq = new WorkflowReq();
+        workflowReq.setId(workflow.getId());
+        workflowReq.setFlowId(workflow.getFlowId());
+        workflowReq.setName(workflow.getName());
+        workflowReq.setDescription(workflow.getDescription());
+        workflowReq.setStatus(workflow.getStatus());
+        workflowReq.setAppId(workflow.getAppId());
+        workflowReq.setAvatarIcon(workflow.getAvatarIcon());
+        workflowReq.setAvatarColor(workflow.getAvatarColor());
+        workflowReq.setDomain(llmInfoVo.getDomain());
+        workflowReq.setData(bizWorkflowData);
+        workflowReq.setCategory(workflow.getCategory());
+        workflowReq.setSpaceId(workflow.getSpaceId());
+        workflowReq.setFlowType(workflow.getType());
+        if (StringUtils.isNotBlank(workflow.getExt())) {
+            workflowReq.setExt(JSON.parseObject(workflow.getExt()));
+        }
+        if (StringUtils.isNotBlank(workflow.getAdvancedConfig())) {
+            workflowReq.setAdvancedConfig(JSON.parseObject(workflow.getAdvancedConfig(), new TypeReference<Map<String, Object>>() {
+            }));
+        }
+        return workflowReq;
+    }
+
+    private boolean syncWorkflowNodeModel(BizWorkflowNode node, LLMInfoVo llmInfoVo, String workflowSource, String serviceId) {
+        if (node == null || node.getData() == null) {
+            return false;
+        }
+        String nodeId = node.getId();
+        if (StringUtils.isBlank(nodeId)) {
+            return false;
+        }
+        String prefix = StringUtils.substringBefore(nodeId, "::");
+        JSONObject nodeParam = node.getData().getNodeParam();
+        if (nodeParam == null) {
+            return false;
+        }
+
+        if (WorkflowConst.NodeType.AGENT.equals(prefix)) {
+            return syncAgentNodeModel(nodeParam, llmInfoVo, workflowSource, serviceId);
+        }
+        if (WorkflowConst.NodeType.SPARK_LLM.equals(prefix)) {
+            return syncLlmNodeModel(nodeParam, llmInfoVo, workflowSource, serviceId);
+        }
+        return false;
+    }
+
+    private boolean syncAgentNodeModel(JSONObject nodeParam, LLMInfoVo llmInfoVo, String workflowSource, String serviceId) {
+        boolean changed = false;
+        JSONObject modelConfig = nodeParam.getJSONObject("modelConfig");
+        if (modelConfig == null) {
+            modelConfig = new JSONObject();
+            nodeParam.put("modelConfig", modelConfig);
+            changed = true;
+        }
+
+        changed |= updateJsonValue(nodeParam, "source", workflowSource);
+        changed |= updateJsonValue(nodeParam, "serviceId", serviceId);
+        changed |= updateJsonValue(nodeParam, "modelId", llmInfoVo.getModelId());
+        changed |= updateJsonValue(nodeParam, "llmId", llmInfoVo.getLlmId());
+        changed |= updateJsonValue(modelConfig, "domain", llmInfoVo.getDomain());
+        if (StringUtils.isNotBlank(llmInfoVo.getUrl())) {
+            changed |= updateJsonValue(modelConfig, "api", llmInfoVo.getUrl());
+        }
+        return changed;
+    }
+
+    private boolean syncLlmNodeModel(JSONObject nodeParam, LLMInfoVo llmInfoVo, String workflowSource, String serviceId) {
+        boolean changed = false;
+        changed |= updateJsonValue(nodeParam, "source", workflowSource);
+        changed |= updateJsonValue(nodeParam, "serviceId", serviceId);
+        changed |= updateJsonValue(nodeParam, "domain", llmInfoVo.getDomain());
+        changed |= updateJsonValue(nodeParam, "modelId", llmInfoVo.getModelId());
+        changed |= updateJsonValue(nodeParam, "llmId", llmInfoVo.getLlmId());
+        if (StringUtils.isNotBlank(llmInfoVo.getUrl())) {
+            changed |= updateJsonValue(nodeParam, "url", llmInfoVo.getUrl());
+        }
+        return changed;
+    }
+
+    private boolean updateJsonValue(JSONObject jsonObject, String key, Object value) {
+        if (jsonObject == null || StringUtils.isBlank(key) || Objects.equals(jsonObject.get(key), value)) {
+            return false;
+        }
+        jsonObject.put(key, value);
+        return true;
+    }
+
+    private String resolveWorkflowServiceId(LLMInfoVo llmInfoVo) {
+        if (StringUtils.isNotBlank(llmInfoVo.getServiceId())) {
+            return llmInfoVo.getServiceId();
+        }
+        return llmInfoVo.getDomain();
+    }
+
+    private String normalizeWorkflowModelSource(LLMInfoVo llmInfoVo) {
+        String provider = StringUtils.trimToEmpty(llmInfoVo.getProvider()).toLowerCase(Locale.ROOT);
+        if (StringUtils.equalsAny(provider, "spark", "xinghuo", "xfyun", "iflytek")) {
+            return "xinghuo";
+        }
+        if (StringUtils.isNotBlank(provider)) {
+            return provider;
+        }
+
+        String domain = StringUtils.trimToEmpty(llmInfoVo.getDomain()).toLowerCase(Locale.ROOT);
+        if (StringUtils.containsAny(domain, "generalv", "max-", "4.0ultra", "x1")) {
+            return "xinghuo";
+        }
+        if (domain.contains("deepseek")) {
+            return "deepseek";
+        }
+        if (domain.contains("glm") || domain.contains("zhipu")) {
+            return "zhipu";
+        }
+        if (domain.contains("claude")) {
+            return "anthropic";
+        }
+        if (domain.contains("gemini")) {
+            return "google";
+        }
+        if (domain.contains("qwen")) {
+            return "qwen";
+        }
+        if (domain.contains("moonshot") || domain.contains("kimi")) {
+            return "moonshot";
+        }
+        if (domain.contains("doubao")) {
+            return "doubao";
+        }
+        return StringUtils.isBlank(llmInfoVo.getUrl()) ? "xinghuo" : "openai";
+    }
+
     public String saveComparisons(List<WorkflowComparisonSaveReq> workflowComparisonReqList) {
         if (workflowComparisonReqList == null || workflowComparisonReqList.isEmpty()) {
             throw new BusinessException(ResponseEnum.PROMPT_GROUP_PROMPT_CANNOT_EMPTY);
