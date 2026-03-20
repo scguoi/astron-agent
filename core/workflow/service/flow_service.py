@@ -33,7 +33,6 @@ from workflow.exception.e import CustomException
 from workflow.exception.errors.err_code import CodeEnum
 from workflow.extensions.middleware.cache.base import BaseCacheService
 from workflow.extensions.middleware.database.utils import session_getter
-from workflow.extensions.middleware.getters import get_db_service
 from workflow.extensions.otlp.log_trace.workflow_log import WorkflowLog
 from workflow.extensions.otlp.trace.span import Span
 from workflow.repository import flow_dao, license_dao
@@ -151,7 +150,50 @@ def get_flow_by_version(
     raise CustomException(CodeEnum.FLOW_NOT_FOUND_ERROR)
 
 
-def get_latest_published_flow_by(
+def get_latest_published(
+    flow_id: str, session: Session, span: Span, version: str = ""
+) -> Flow:
+    """
+    Retrieve the latest published workflow by flow ID.
+
+    This function first checks the cache for the workflow, then falls back to database
+    query if not found.
+
+    :param flow_id: The unique identifier of the workflow
+    :param session: Database session for querying
+    :param span: Tracing span for logging operations
+    :param version: Optional version number of the workflow (empty string for latest)
+    :return: The published flow object
+    :raises CustomException: If flow not found, or not published
+    """
+    # Check cache first for better performance
+    if not version:
+        flow = flow_cache.get_flow_by_flow_id_latest(flow_id)
+    else:
+        flow = flow_cache.get_flow_by_flow_id_version(int(flow_id), version)
+    if flow:
+        return flow
+
+    # Query database if not found in cache
+    db_flow = get(flow_id, session, span)
+
+    # Get the latest published version of the flow
+    published_flow = flow_dao.get_latest_published_flow_by(
+        db_flow.group_id, session, version
+    )
+    if not published_flow:
+        raise CustomException(CodeEnum.FLOW_NOT_PUBLISH_ERROR)
+
+    # Cache the result for future requests
+    if not version:
+        flow_cache.set_flow_by_flow_id_latest(flow_id, published_flow)
+    else:
+        flow_cache.set_flow_by_flow_id_version(flow_id, version, published_flow)
+
+    return published_flow
+
+
+def get_latest_published_flow_and_check_auth(
     flow_id: str, app_alias_id: str, session: Session, span: Span, version: str = ""
 ) -> Flow:
     """
@@ -166,39 +208,17 @@ def get_latest_published_flow_by(
     :param span: Tracing span for logging operations
     :param version: Optional version number of the workflow (empty string for latest)
     :return: The published flow object
-    :raises CustomException: If flow not found, not authorized, or not published
+    :raises CustomException: If flow not found, or not published
     """
-    # Check cache first for better performance
-    if not version:
-        flow = flow_cache.get_flow_by_flow_id_latest(flow_id)
-    else:
-        flow = flow_cache.get_flow_by_flow_id_version(flow_id, version)
-    if flow:
-        return flow
-
-    # Query database if not found in cache
-    db_flow = get(flow_id, session, span)
+    published_flow = get_latest_published(flow_id, session, span, version)
 
     # Validate license permissions
-    lic = license_dao.get_by(db_flow.group_id, app_alias_id, session)
+    lic = license_dao.get_by(published_flow.group_id, app_alias_id, session)
     if not lic:
         raise CustomException(CodeEnum.APP_FLOW_NOT_AUTH_BOND_ERROR)
 
     if not lic.status:
         raise CustomException(CodeEnum.APP_FLOW_NO_LICENSE_ERROR)
-
-    # Get the latest published version of the flow
-    published_flow = flow_dao.get_latest_published_flow_by(
-        db_flow.group_id, session, version
-    )
-    if not published_flow:
-        raise CustomException(CodeEnum.FLOW_NOT_PUBLISH_ERROR)
-
-    # Cache the result for future requests
-    if not version:
-        flow_cache.set_flow_by_flow_id_latest(flow_id, published_flow)
-    else:
-        flow_cache.set_flow_by_flow_id_version(flow_id, version, published_flow)
 
     return published_flow
 
@@ -265,7 +285,7 @@ def gen_mcp_input_schema(flow: Flow) -> dict:
 
 
 async def node_debug(
-    workflow_dsl: WorkflowDSL, flow_id: str, span: Span
+    workflow_dsl: WorkflowDSL, flow_id: str, uid: str, span: Span
 ) -> NodeDebugRespVo:
     """
     Execute node debugging for a single workflow node.
@@ -292,7 +312,7 @@ async def node_debug(
     # Disable retry mechanism for node debugging to get immediate feedback
     node_instance.retry_config.should_retry = False
 
-    variable_pool.system_params.set(ParamKey.FlowId, flow_id)
+    variable_pool.system_params.set(ParamKey.FlowId, flow_id).set(ParamKey.Uid, uid)
 
     if node_instance.node_id.startswith(NodeType.FLOW.value):
         await set_flow_node_output_mode(
@@ -409,13 +429,12 @@ async def set_flow_node_output_mode(
     if not isinstance(node_instance, FlowNode):
         return
     flow_id: str = node_instance.flowId
-    app_id: str = node_instance.appId
     node_id: str = node_instance.node_id
     db_flow = flow_cache.get_flow_by_id(flow_id)
     if not db_flow:
         # Query flow end node information
-        with session_getter(get_db_service()) as session:
-            db_flow = get_latest_published_flow_by(flow_id, app_id, session, span)
+        with session_getter() as session:
+            db_flow = get_latest_published(flow_id, session, span)
     # Find end node and extract output mode configuration
     for node in db_flow.data["data"]["nodes"]:
         if (

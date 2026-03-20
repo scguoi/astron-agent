@@ -326,7 +326,7 @@ class QuestionAnswerNode(BaseLLMNode):
                     cause_error="Event does not exist",
                 )
             res = await EventRegistry().fetch_resume_data(
-                queue_name=event.get_node_q_name(), timeout=self.timeout
+                queue_name=event.get_node_q_name(), timeout=event.timeout
             )
             if res:
                 msg_str = res.get("message", "")
@@ -907,7 +907,7 @@ class QuestionAnswerNode(BaseLLMNode):
 
         callbacks = cast(ChatCallBacks, kwargs.get("callbacks"))
         self.start_time = time.time()
-        self.timeout = self.timeout * 60  # Convert timeout from minutes to seconds
+        timeout_seconds = self.timeout * 60  # Convert timeout from minutes to seconds
         question_template: str = self.question
         try:
             # Process question content
@@ -943,11 +943,11 @@ class QuestionAnswerNode(BaseLLMNode):
 
             # Register node interrupt event
             EventRegistry().on_interrupt_node_start(
-                event_id=self.event_id, node_id=self.node_id, timeout=self.timeout
+                event_id=self.event_id, node_id=self.node_id, timeout=timeout_seconds
             )
             await span.add_info_events_async(
                 {
-                    "interrupt_info": f"event_id: {self.event_id}, node_id: {self.node_id}, timeout: {str(self.timeout)}"
+                    "interrupt_info": f"event_id: {self.event_id}, node_id: {self.node_id}, timeout: {str(timeout_seconds)}"
                 }
             )
 

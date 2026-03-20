@@ -50,7 +50,7 @@ def del_flow_by_id(flow_id: str) -> None:
     cache_service.delete(key=key)
 
 
-def get_flow_by_flow_id_version(flow_id: str, version: str) -> Flow | None:
+def get_flow_by_flow_id_version(flow_id: int, version: str) -> Flow | None:
     """
     Retrieve workflow flow information by flow ID and version from cache.
 

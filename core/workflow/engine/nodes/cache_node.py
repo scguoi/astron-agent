@@ -28,6 +28,7 @@ from workflow.engine.nodes.knowledge.knowledge_node import KnowledgeNode
 from workflow.engine.nodes.knowledge_pro.knowledge_pro_node import KnowledgeProNode
 from workflow.engine.nodes.llm.spark_llm_node import SparkLLMNode
 from workflow.engine.nodes.mcp.mcp_node import MCPNode
+from workflow.engine.nodes.memory import MemoryAddNode, MemorySearchNode
 from workflow.engine.nodes.message.message_node import MessageNode
 from workflow.engine.nodes.params_extractor.pe_node import ParamsExtractorNode
 from workflow.engine.nodes.pgsql.pgsql_node import PGSqlNode
@@ -38,9 +39,6 @@ from workflow.engine.nodes.question_answer.question_answer_node import (
 from workflow.engine.nodes.rpa.rpa_node import RPANode
 from workflow.engine.nodes.start.start_node import StartNode
 from workflow.engine.nodes.text_joiner.text_joiner_node import TextJoinerNode
-from workflow.engine.nodes.variable_aggregation.variable_aggregation_node import (
-    VariableAggregationNode,
-)
 
 # TODO: Implement automatic loading mechanism for dynamic node discovery
 # Registry mapping node types to their corresponding node classes
@@ -63,11 +61,12 @@ tool_classes = {
     "iteration-node-end": IterationEndNode,  # Iteration end node for loop termination
     "text-joiner": TextJoinerNode,  # Text joining node for content concatenation
     "node-variable": GlobalVariablesNode,  # Global variables node for state management
-    "variable-aggregation": VariableAggregationNode,  # Variable aggregation node for first-non-empty merging
     "flow": FlowNode,  # Sub-flow node for nested workflow execution
     "agent": AgentNode,  # Agent node for autonomous task execution
     "question-answer": QuestionAnswerNode,  # Question-answer node for Q&A processing
     "database": PGSqlNode,  # PostgreSQL database node for data operations
     "rpa": RPANode,
     "mcp": MCPNode,
+    "memory-add": MemoryAddNode,
+    "memory-search": MemorySearchNode,
 }

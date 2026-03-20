@@ -51,7 +51,5 @@ class HttpClient:
         This method is used to get the original session object for making requests.
         """
         if cls._session is None or cls._session.closed:
-            raise RuntimeError(
-                "HttpClient session is not initialized. Call setup() first."
-            )
+            return aiohttp.ClientSession()
         return cls._session

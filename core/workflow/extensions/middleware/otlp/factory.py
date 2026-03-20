@@ -7,10 +7,10 @@ based on configuration environment variables.
 
 from typing import Any
 
+from workflow.extensions.middleware.base import ServiceType
 from workflow.extensions.middleware.factory import ServiceFactory
 from workflow.extensions.middleware.otlp.base import BaseOTLPService
 from workflow.extensions.middleware.otlp.manager import OtlpService
-from workflow.extensions.middleware.utils import ServiceType
 
 
 class OTLPServiceFactory(ServiceFactory):

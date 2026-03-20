@@ -378,9 +378,13 @@ class Link:
         response_json = requests.get(
             self.get_url, headers=self.const_headers, params=params
         ).json()
-        if response_json.get("code", CodeEnum.SPARK_LINK_ACTION_ERROR.code) != 0:
-            # TODO: Add logging for error cases
-            return []
+        code = response_json.get("code", 0)
+        if code != 0:
+            raise CustomException(
+                err_code=CodeConvert.sparkLinkCode(code),
+                err_msg=response_json.get("message", ""),
+                cause_error=json.dumps(response_json, ensure_ascii=False),
+            )
         return response_json.get("data", {}).get("tools", [])
 
     @staticmethod

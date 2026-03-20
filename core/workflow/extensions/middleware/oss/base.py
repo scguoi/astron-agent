@@ -8,7 +8,7 @@ providing a common interface for different object storage implementations.
 import abc
 from typing import Optional
 
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.extensions.middleware.base import ServiceType
 
 
 class BaseOSSService(abc.ABC):

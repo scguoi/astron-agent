@@ -7,11 +7,12 @@ by registering their factories with the service manager.
 
 from loguru import logger
 
+from workflow.extensions.middleware.base import FactoryConfig
 from workflow.extensions.middleware.manager import service_manager
 from workflow.extensions.middleware.utils import get_factories_and_deps
 
 
-def initialize_services() -> None:
+def initialize_services(factory_list: list[FactoryConfig]) -> None:
     """
     Initialize all middleware services by registering their factories.
 
@@ -22,9 +23,9 @@ def initialize_services() -> None:
 
     :raises RuntimeError: If any service fails to initialize
     """
-    for factory, dependencies in get_factories_and_deps():
+    for factory, config in get_factories_and_deps(factory_list):
         try:
-            service_manager.register_factory(factory, dependencies=dependencies)
+            service_manager.register_factory(factory, config)
         except Exception as exc:
             logger.exception(exc)
             raise RuntimeError(

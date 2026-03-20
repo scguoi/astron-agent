@@ -32,6 +32,7 @@ class OtlpService(BaseOTLPService, Service):
             export_timeout_millis=int(
                 os.getenv("OTLP_METRIC_EXPORT_TIMEOUT_MILLIS", "5000")
             ),
+            headers=os.getenv("OTLP_HEADERS") or None,
         )
 
         # Initialize service identification generator
@@ -57,4 +58,5 @@ class OtlpService(BaseOTLPService, Service):
             export_timeout_millis=int(
                 os.getenv("OTLP_TRACE_EXPORT_TIMEOUT_MILLIS", "30000")
             ),
+            headers=os.getenv("OTLP_HEADERS") or None,
         )

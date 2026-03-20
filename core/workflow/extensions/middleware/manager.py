@@ -5,13 +5,12 @@ This module provides the ServiceManager class which handles the registration,
 creation, and management of middleware services using the factory pattern.
 """
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from workflow.extensions.middleware.base import Service
+from workflow.extensions.middleware.base import Service, ServiceType
 from workflow.extensions.middleware.factory import ServiceFactory
-from workflow.extensions.middleware.utils import ServiceType
 
 
 class ServiceManager:
@@ -33,6 +32,7 @@ class ServiceManager:
     def register_factory(
         self,
         service_factory: "ServiceFactory",
+        config: dict[str, Any] = {},
         dependencies: Optional[List[ServiceType]] = None,
     ) -> None:
         """
@@ -49,7 +49,7 @@ class ServiceManager:
         service_name = service_factory.service_class.name
         self.factories[service_name] = service_factory
         self.dependencies[service_name] = dependencies
-        self._create_service(service_name)
+        self._create_service(service_name, config)
 
     def get(self, service_name: ServiceType) -> "Service":
         """
@@ -66,7 +66,9 @@ class ServiceManager:
 
         return self.services[service_name]
 
-    def _create_service(self, service_name: ServiceType) -> None:
+    def _create_service(
+        self, service_name: ServiceType, config: dict[str, Any] = {}
+    ) -> None:
         """
         Create a new service instance using its registered factory.
 
@@ -79,7 +81,7 @@ class ServiceManager:
         self._validate_service_creation(service_name)
 
         # Create the actual service
-        self.services[service_name] = self.factories[service_name].create()
+        self.services[service_name] = self.factories[service_name].create(**config)
         self.services[service_name].set_ready()
         logger.info(f"✅ Service {service_name} created successfully")
 

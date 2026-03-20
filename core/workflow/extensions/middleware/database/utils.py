@@ -11,11 +11,11 @@ from typing import Iterator
 from loguru import logger
 from sqlmodel import Session  # type: ignore
 
-from workflow.extensions.middleware.database.manager import DatabaseService
+from workflow.extensions.middleware.getters import get_db_service
 
 
 @contextmanager
-def session_getter(db_service: "DatabaseService") -> Iterator[Session]:
+def session_getter(auto_commit: bool = True) -> Iterator[Session]:
     """
     Context manager for database session management.
 
@@ -24,14 +24,18 @@ def session_getter(db_service: "DatabaseService") -> Iterator[Session]:
     database sessions are properly closed even if exceptions occur during
     database operations.
 
-    :param db_service: DatabaseService instance to get session from
+    :param auto_commit: Whether to automatically commit on successful exit.
+        Set to False for read-only operations to avoid unnecessary commit overhead.
     :return: Iterator yielding a database session
     :raises Exception: Re-raises any exception that occurs during session usage
     """
+    db_service = get_db_service()
     try:
         # Create a new session from the database service engine
         session = Session(db_service.engine)
         yield session
+        if auto_commit:
+            session.commit()
     except Exception as e:
         # Log the exception and rollback the session before re-raising
         logger.debug(f"Session rollback because of exception: {e}")

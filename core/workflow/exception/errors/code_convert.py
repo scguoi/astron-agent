@@ -67,7 +67,7 @@ class CodeConvert:
             case ThirdApiCodeEnum.SPARK_LINK_APP_INIT_ERROR.code:
                 return CodeEnum.SPARK_LINK_APP_INIT_ERROR
             case ThirdApiCodeEnum.SPARK_LINK_COMMON_ERROR.code:
-                return CodeEnum.SPARK_LINK_ACTION_ERROR
+                return CodeEnum.SPARK_LINK_COMMON_ERROR
             case ThirdApiCodeEnum.SPARK_LINK_JSON_PROTOCOL_PARSER_ERROR.code:
                 return CodeEnum.SPARK_LINK_JSON_PROTOCOL_PARSER_ERROR
             case ThirdApiCodeEnum.SPARK_LINK_JSON_SCHEMA_VALIDATE_ERROR.code:
@@ -91,7 +91,7 @@ class CodeConvert:
             case ThirdApiCodeEnum.SPARK_LINK_OPERATION_ID_NOT_EXIST_ERROR.code:
                 return CodeEnum.SPARK_LINK_OPERATION_ID_NOT_EXIST_ERROR
             case _:
-                return CodeEnum.SPARK_LINK_ACTION_ERROR
+                return CodeEnum.SPARK_LINK_ERROR
 
     @staticmethod
     def sparkCode(code: int) -> CodeEnum:

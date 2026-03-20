@@ -1,3 +1,4 @@
+import json
 import os
 
 from loguru import logger
@@ -35,6 +36,7 @@ def init_metric(
     timeout: int = 5000,
     export_interval_millis: int = 1000,
     export_timeout_millis: int = 5000,
+    headers: str | None = None,
 ) -> None:
     """
     Initialize the OpenTelemetry metrics system.
@@ -47,6 +49,7 @@ def init_metric(
     :param timeout: Server connection timeout in milliseconds, default 5000ms
     :param export_interval_millis: SDK metric reporting interval in milliseconds, recommended less than 30000ms, default 1000ms
     :param export_timeout_millis: Metrics reporting server timeout in milliseconds, default 5000ms
+    :param headers: Headers as string, will be converted to "key=value" format string
     """
 
     global counter, histogram, meter
@@ -55,11 +58,14 @@ def init_metric(
         assert endpoint is not None, "endpoint is None"
         assert service_name is not None, "service_name is None"
         # Create OTLP metric exporter with insecure connection
+        if headers:
+            headers = ",".join([f"{k}={v}" for k, v in json.loads(headers).items()])
         exporter = OTLPMetricExporter(
             insecure=True,
             endpoint=endpoint,
             timeout=timeout,
             max_export_batch_size=1000,
+            headers=headers,
         )
 
         # Create periodic metric reader for automatic export

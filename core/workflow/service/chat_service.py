@@ -1,22 +1,22 @@
 import asyncio
 import copy
 import json
+import os
 import time
 from asyncio import Queue
 from datetime import datetime
-from typing import (
-    Any,
-    AsyncGenerator,
-    AsyncIterator,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import Any, AsyncIterator, Dict, Iterable, List, Optional, Tuple, cast
 
 from loguru import logger
+
+from workflow.consts.runtime_env import RuntimeEnv
+from workflow.consts.tenant_publish_matrix import Platform, TenantPublishMatrix
+from workflow.domain.models.flow import Flow
+
+try:
+    from sqlmodel import Session  # type: ignore[import]
+except ImportError:
+    from sqlalchemy.orm import Session  # type: ignore[assignment]
 
 from workflow.cache.event_registry import Event, EventRegistry
 from workflow.consts.app_audit import AppAuditPolicy
@@ -51,7 +51,7 @@ from workflow.infra.audit_system.audit_api.iflytek.ifly_audit_api import IFlyAud
 from workflow.infra.audit_system.base import FrameAuditResult
 from workflow.infra.audit_system.strategy.base_strategy import AuditStrategy
 from workflow.infra.audit_system.strategy.text_strategy import TextAuditStrategy
-from workflow.service import audit_service
+from workflow.service import app_service, audit_service, flow_service
 from workflow.service.flow_service import set_flow_node_output_mode
 from workflow.service.history_service import get_history
 from workflow.service.ops_service import kafka_report
@@ -281,7 +281,7 @@ async def _validate_file_inputs(
         if file_var_name not in chat_vo.parameters:
             if is_required:
                 raise CustomException(
-                    err_code=CodeEnum.FILE_VARIABLE_PROTOCOL_ERROR,
+                    err_code=CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                     err_msg=f"Error: {file_var_name} is a required parameter",
                 )
             continue
@@ -306,7 +306,7 @@ async def _validate_file_inputs(
             span_context.add_error_event(
                 f"File variable protocol error, invalid type: {file_var_type}"
             )
-            raise CustomException(err_code=CodeEnum.FILE_VARIABLE_PROTOCOL_ERROR)
+            raise CustomException(err_code=CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR)
 
 
 async def _get_chat_history(
@@ -1167,7 +1167,7 @@ async def _init_audit_policy(
 
 async def chat_resume_response_stream(
     span: Span, event_id: str, audit_policy: int, is_release: bool
-) -> AsyncGenerator[str, None]:
+) -> AsyncIterator[str]:
     """
     Resume chat response streaming for interrupted workflows.
 
@@ -1180,18 +1180,18 @@ async def chat_resume_response_stream(
     :param is_release: Whether running in production release environment
     :return: AsyncGenerator yielding streaming response strings
     """
-    event = EventRegistry().get_event(event_id=event_id)
-
-    message_cache: List[str] = []
-    reasoning_content_cache: List[str] = []
-    is_stream = event.is_stream
-
-    final_content = ""
-    final_reasoning_content = ""
-    last_workflow_step = WorkflowStep(seq=0, progress=0)
-
     with span.start() as span_context:
         try:
+            event = EventRegistry().get_event(event_id=event_id)
+
+            message_cache: List[str] = []
+            reasoning_content_cache: List[str] = []
+            is_stream = event.is_stream
+
+            final_content = ""
+            final_reasoning_content = ""
+            last_workflow_step = WorkflowStep(seq=0, progress=0)
+
             # Question-answer supports audit
             if audit_policy == AppAuditPolicy.AGENT_PLATFORM.value and event_id:
                 raise CustomException(CodeEnum.AUDIT_QA_ERROR)
@@ -1273,3 +1273,55 @@ async def chat_resume_response_stream(
             llm_resp.id = span_context.sid
             yield Streaming.generate_data(llm_resp.model_dump(exclude_none=True))
             return
+
+        finally:
+            if EventRegistry().check_event_lock(event_id=event_id):
+                EventRegistry().unlock_event(event_id=event_id)
+
+
+async def get_and_validate_published_flow(
+    chat_vo: ChatVo,
+    app_id: str,
+    span: Span,
+    db_session: Session,
+) -> Tuple[Flow, AppAuditPolicy]:
+    db_flow = await asyncio.to_thread(
+        flow_service.get_latest_published_flow_and_check_auth,
+        chat_vo.flow_id,
+        app_id,
+        db_session,
+        span,
+        chat_vo.version,
+    )
+    spark_dsl = db_flow.release_data
+    app_info = await app_service.get_info(app_id, db_session, span)
+
+    app_audit_policy = (
+        AppAuditPolicy.DEFAULT
+        if not app_info.audit_policy
+        or app_info.audit_policy == AppAuditPolicy.DEFAULT.value
+        else AppAuditPolicy.AGENT_PLATFORM
+    )
+
+    # Validate flow platform publishing permissions
+    if (db_flow.release_status == 0) or (
+        (db_flow.release_status & TenantPublishMatrix(Platform.XINGCHEN).get_take_off)
+        and (
+            db_flow.release_status & TenantPublishMatrix(Platform.KAI_FANG).get_take_off
+        )
+        and (db_flow.release_status & TenantPublishMatrix(Platform.AI_UI).get_take_off)
+    ):
+        raise CustomException(CodeEnum.FLOW_NOT_PUBLISH_ERROR)
+
+    if not os.getenv("RUNTIME_ENV", RuntimeEnv.Local.value) in [
+        RuntimeEnv.Dev.value,
+        RuntimeEnv.Test.value,
+    ]:
+        # Replace app_id, api_key, api_secret in protocol
+        db_flow.release_data = change_dsl_triplets(
+            spark_dsl,
+            app_id=app_id,
+            api_key=app_info.api_key,
+            api_secret=app_info.api_secret,
+        )
+    return db_flow, app_audit_policy

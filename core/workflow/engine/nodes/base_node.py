@@ -16,11 +16,7 @@ from workflow.consts.engine.timeout import QueueTimeout
 from workflow.domain.entities.chat import HistoryItem
 from workflow.engine.callbacks.callback_handler import ChatCallBacks
 from workflow.engine.callbacks.openai_types_sse import GenerateUsage
-from workflow.engine.entities.history import (
-    EnableChatHistoryV2,
-    History,
-    ProcessArrayMethod,
-)
+from workflow.engine.entities.history import EnableChatHistoryV2, History
 from workflow.engine.entities.msg_or_end_dep_info import MsgOrEndDepInfo
 from workflow.engine.entities.node_entities import NodeType
 from workflow.engine.entities.node_running_status import NodeRunningStatus
@@ -202,7 +198,13 @@ class BaseNode(BaseModel):
             result.token_cost = token_cost
         return result
 
-    def fail(self, error: Exception, code_enum: CodeEnum, span: Span) -> NodeRunResult:
+    def fail(
+        self,
+        error: CustomException,
+        span: Span,
+        inputs: dict = {},
+        outputs: dict = {},
+    ) -> NodeRunResult:
         """
         Create a failed node execution result.
 
@@ -210,30 +212,21 @@ class BaseNode(BaseModel):
         execution of the node with the provided error information.
 
         :param error: The exception that caused the failure
-        :param code_enum: Error code enumeration
         :param span: Tracing span for recording the exception
+        :param inputs: Input parameters for the node
+        :param outputs: Output parameters from the node
         :return: NodeRunResult with FAILED status
         """
         span.record_exception(error)
-        if isinstance(error, CustomException):
-            return NodeRunResult(
-                status=WorkflowNodeExecutionStatus.FAILED,
-                error=error,
-                node_id=self.node_id,
-                alias_name=self.alias_name,
-                node_type=self.node_type,
-            )
-        else:
-            return NodeRunResult(
-                status=WorkflowNodeExecutionStatus.FAILED,
-                error=CustomException(
-                    code_enum,
-                    cause_error=error,
-                ),
-                node_id=self.node_id,
-                alias_name=self.alias_name,
-                node_type=self.node_type,
-            )
+        return NodeRunResult(
+            status=WorkflowNodeExecutionStatus.FAILED,
+            inputs=inputs,
+            outputs=outputs,
+            error=error,
+            node_id=self.node_id,
+            alias_name=self.alias_name,
+            node_type=self.node_type,
+        )
 
 
 # List of node types that support branching logic
@@ -815,7 +808,7 @@ class BaseOutputNode(BaseNode):
                     content=content, is_end=(status == SparkLLMStatus.END.value)
                 )
             )
-            if is_reasoning:
+            if is_reasoning and content:
                 # If outputting reasoning process, can exit after output
                 return
         if is_reasoning:
@@ -929,6 +922,7 @@ class BaseOutputNode(BaseNode):
                     template_type == TemplateType.REASONING
                     and reasoning_content == ""
                     and is_reasoning
+                    and content
                 ):
                     break
             except asyncio.TimeoutError:
@@ -1129,18 +1123,10 @@ class BaseLLMNode(BaseNode):
         await span_context.add_info_events_async({"user_input": str(user_msg)})
 
         if history_v2:
-            # Subtract system_input and user_input token usage
-            system_input_usage = 0
-            if system_msg:
-                system_input_usage = ProcessArrayMethod.calculate_message_token(
-                    system_msg
-                )
-            user_inpt_usage = ProcessArrayMethod.calculate_message_token(user_msg)
-            max_token = history_v2.max_token - system_input_usage - user_inpt_usage
             rounds = history_v2.rounds
             # Process historical messages based on new token count
             processed_history = history_v2.process_history(
-                data=history_v2.origin_history, max_token=max_token, rounds=rounds
+                data=history_v2.origin_history, rounds=rounds
             )
         return SystemUserMsg(
             system_msg=system_msg,
@@ -1177,12 +1163,7 @@ class BaseLLMNode(BaseNode):
             payload_comp_history = processed_history.copy()
             # Handle images in history
             if payload_comp_history and payload_comp_history[0].content_type == "image":
-                if self.source in {
-                    ModelProviderEnum.OPENAI.value,
-                    ModelProviderEnum.DEEPSEEK.value,
-                    ModelProviderEnum.ANTHROPIC.value,
-                    ModelProviderEnum.GOOGLE.value,
-                }:
+                if self.source == ModelProviderEnum.OPENAI.value:
                     payload_comp_history.pop(0)
                 if self.source == ModelProviderEnum.XINGHUO.value:
                     image_models = os.getenv(

@@ -1,6 +1,6 @@
 import abc
 
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.extensions.middleware.base import ServiceType
 
 
 class BaseOTLPService(abc.ABC):
