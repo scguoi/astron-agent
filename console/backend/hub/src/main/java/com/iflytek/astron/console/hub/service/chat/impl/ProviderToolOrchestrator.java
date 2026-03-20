@@ -18,22 +18,15 @@ import java.util.Set;
  * - spark: native support via SparkChatRequest.enableWebSearch
  * - google: native support via Gemini tools.google_search
  * - anthropic: native support via Anthropic web_search tool + beta header
- * - other providers: platform-managed web search, injected as external context
+ * - other OpenAI-compatible providers: model-driven function tool calling via ifly_search
  */
 final class ProviderToolOrchestrator {
 
     static final String TOOL_IFLY_SEARCH = "ifly_search";
+    static final String OPENAI_SEARCH_TOOL_NAME = "ifly_search";
     static final String PROVIDER_SPARK = "spark";
     static final String PROVIDER_GOOGLE = "google";
     static final String PROVIDER_ANTHROPIC = "anthropic";
-    private static final String MANAGED_WEB_SEARCH_PROMPT = """
-            System notice: the platform has executed a managed real-time web search for the latest user request.
-            Treat the returned search context as trusted external evidence and use it when producing the final answer.
-            Keep source reference indices like [1] when they appear in the provided search summary.
-            """;
-    private static final String SEARCH_UNAVAILABLE_NOTICE =
-            "System notice: the platform could not complete the enabled real-time web search for this request. " +
-                    "You must explicitly tell the user that real-time web search was unavailable and no live web search result was used.";
 
     private ProviderToolOrchestrator() {
     }
@@ -51,7 +44,7 @@ final class ProviderToolOrchestrator {
             case PROVIDER_SPARK -> new ToolExecutionPlan(normalizedProvider, enabledTools, WebSearchMode.SPARK_NATIVE);
             case PROVIDER_GOOGLE -> new ToolExecutionPlan(normalizedProvider, enabledTools, WebSearchMode.GOOGLE_NATIVE);
             case PROVIDER_ANTHROPIC -> new ToolExecutionPlan(normalizedProvider, enabledTools, WebSearchMode.ANTHROPIC_NATIVE);
-            default -> new ToolExecutionPlan(normalizedProvider, enabledTools, WebSearchMode.PLATFORM_MANAGED);
+            default -> new ToolExecutionPlan(normalizedProvider, enabledTools, WebSearchMode.OPENAI_FUNCTION);
         };
     }
 
@@ -69,22 +62,11 @@ final class ProviderToolOrchestrator {
                 request.put("tools", buildAnthropicTools());
                 request.put("anthropicBeta", "web-search-2025-03-05");
             }
-            case PLATFORM_MANAGED -> request.put("managedWebSearch", true);
-            case MANAGED_UNAVAILABLE -> prependSystemNotice(request, SEARCH_UNAVAILABLE_NOTICE);
-            case SPARK_NATIVE -> {
-                // Spark should not enter PromptChatService, but keep behavior explicit.
-                prependSystemNotice(request, SEARCH_UNAVAILABLE_NOTICE);
-            }
+            case OPENAI_FUNCTION -> request.put("tools", buildOpenAiCompatibleSearchTools());
+            case SPARK_NATIVE -> { }
             default -> {
             }
         }
-    }
-
-    static void applyManagedSearchContext(JSONObject request, String searchSummary) {
-        if (StringUtils.isBlank(searchSummary)) {
-            return;
-        }
-        prependSystemNotice(request, MANAGED_WEB_SEARCH_PROMPT + "\n\nManaged search summary:\n" + searchSummary);
     }
 
     static String normalizeProvider(String provider) {
@@ -120,16 +102,30 @@ final class ProviderToolOrchestrator {
         return tools;
     }
 
-    private static void prependSystemNotice(JSONObject request, String notice) {
-        JSONArray messages = request.getJSONArray("messages");
-        if (messages == null) {
-            messages = new JSONArray();
-            request.put("messages", messages);
-        }
-        JSONObject systemMessage = new JSONObject();
-        systemMessage.put("role", "system");
-        systemMessage.put("content", notice);
-        messages.add(0, systemMessage);
+    private static JSONArray buildOpenAiCompatibleSearchTools() {
+        JSONArray tools = new JSONArray();
+        JSONObject function = new JSONObject();
+        function.put("name", OPENAI_SEARCH_TOOL_NAME);
+        function.put("description", "Search the live web for up-to-date information when the user asks about current events, recent facts, or anything that requires real-time information.");
+
+        JSONObject parameters = new JSONObject();
+        parameters.put("type", "object");
+        JSONObject properties = new JSONObject();
+        properties.put("query", new JSONObject()
+                .fluentPut("type", "string")
+                .fluentPut("description", "A precise web search query based on the user's request."));
+        parameters.put("properties", properties);
+        JSONArray required = new JSONArray();
+        required.add("query");
+        parameters.put("required", required);
+        parameters.put("additionalProperties", false);
+
+        function.put("parameters", parameters);
+
+        tools.add(new JSONObject()
+                .fluentPut("type", "function")
+                .fluentPut("function", function));
+        return tools;
     }
 
     record ToolExecutionPlan(String provider, Set<String> enabledTools, WebSearchMode webSearchMode) {
@@ -140,7 +136,6 @@ final class ProviderToolOrchestrator {
         SPARK_NATIVE,
         GOOGLE_NATIVE,
         ANTHROPIC_NATIVE,
-        PLATFORM_MANAGED,
-        MANAGED_UNAVAILABLE
+        OPENAI_FUNCTION
     }
 }
