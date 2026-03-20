@@ -313,7 +313,6 @@ class CodeEnum(Enum):
     # 22200
 
     # Engine errors
-    ENG_PROTOCOL_VALIDATE_ERROR = (22300, "Workflow engine protocol validation failed")
     ENG_RUN_ERROR = (22301, "Workflow engine run failed")
     NODE_RUN_ERROR = (22302, "Node execution failed")
     NODE_RUN_TIMEOUT_ERROR = (22303, "Node execution timeout")
