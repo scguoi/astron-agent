@@ -27,7 +27,6 @@ from workflow.engine.nodes.entities.node_run_result import (
 from workflow.exception.e import CustomException
 from workflow.exception.errors.err_code import CodeEnum
 from workflow.extensions.middleware.database.utils import session_getter
-from workflow.extensions.middleware.getters import get_db_service
 from workflow.extensions.otlp.log_trace.node_log import NodeLog
 from workflow.extensions.otlp.trace.span import Span
 
@@ -365,7 +364,7 @@ class FlowNode(BaseNode):
             )
 
         # Query application credentials from database
-        with session_getter(get_db_service()) as session:
+        with session_getter() as session:
             start_time = time.time() * 1000
             app = session.query(App).filter_by(alias_id=self.appId).first()
 

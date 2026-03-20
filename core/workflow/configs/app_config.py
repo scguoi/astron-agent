@@ -1,8 +1,9 @@
+import os
 import re
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from workflow.consts.database import PGSQL_INVALID_KEY
 from workflow.exception.e import CustomException
@@ -168,6 +169,90 @@ class PgsqlConfig(BaseSettings):
             )
 
 
+class KafkaConfig(BaseSettings):
+    """
+    Kafka configuration model.
+
+    This model represents the Kafka configuration with its various settings.
+    Attributes:
+        kafka_servers: Kafka broker addresses, comma-separated
+        kafka_protocol: Security protocol (PLAINTEXT, SASL_PLAINTEXT, SSL, SASL_SSL)
+        kafka_mechanism: SASL mechanism (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512)
+        kafka_username: SASL username
+        kafka_password: SASL password
+        kafka_enable: Whether Kafka is enabled (0/1 or true/false)
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="", case_sensitive=False, env_file=".env"
+    )
+
+    kafka_servers: str = Field(
+        default="",
+        alias="KAFKA_SERVERS",
+        description="Kafka broker addresses (comma-separated)",
+        min_length=1,
+    )
+
+    kafka_protocol: str = Field(
+        default=os.getenv("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT").upper(),
+        alias="KAFKA_SECURITY_PROTOCOL",
+        description="Security protocol for Kafka",
+    )
+
+    kafka_mechanism: str = Field(
+        default=os.getenv("KAFKA_SASL_MECHANISM", "PLAIN").upper(),
+        alias="KAFKA_SASL_MECHANISM",
+        description="SASL authentication mechanism",
+    )
+
+    kafka_username: str = Field(
+        default=os.getenv("KAFKA_SASL_USERNAME", ""),
+        alias="KAFKA_SASL_USERNAME",
+        description="Kafka SASL username",
+    )
+
+    kafka_password: SecretStr = Field(
+        default=SecretStr(os.getenv("KAFKA_SASL_PASSWORD", "")),
+        alias="KAFKA_SASL_PASSWORD",
+        description="Kafka SASL password",
+    )
+
+    kafka_enable: bool = Field(
+        default=os.getenv("KAFKA_ENABLE", "0").lower() in ("1", "true", "yes"),
+        alias="KAFKA_ENABLE",
+        description="Whether Kafka is enabled",
+    )
+
+    kafka_timeout: int = Field(
+        default=int(os.getenv("KAFKA_TIMEOUT", "10")),
+        alias="KAFKA_TIMEOUT",
+        description="Kafka operation timeout in seconds",
+    )
+
+    kafka_session_timeout: int = Field(
+        default=int(os.getenv("KAFKA_SESSIONTIMEOUT", "30")),
+        alias="KAFKA_SESSIONTIMEOUT",
+        description="Kafka session timeout in seconds",
+    )
+
+    @field_validator("kafka_servers", mode="after")
+    @classmethod
+    def validate_kafka_servers(cls, v: str) -> str:
+        """Validate and clean Kafka servers configuration."""
+        if not v:
+            v = os.getenv("KAFKA_SERVERS", "")
+
+        v = v.strip()
+        if not v:
+            raise ValueError(
+                "KAFKA_SERVERS environment variable is not configured. "
+                "Please set KAFKA_SERVERS with comma-separated broker addresses"
+            )
+
+        return v
+
+
 class CodeExecutorConfig(BaseSettings):
     """
     Code executor configuration model.
@@ -236,6 +321,7 @@ class WorkflowConfig(BaseModel):
 
     file_config: FileConfig = Field(default_factory=FileConfig)
     pgsql_config: PgsqlConfig = Field(default_factory=PgsqlConfig)
+    kafka_config: KafkaConfig = Field(default_factory=KafkaConfig)
     code_executor_config: CodeExecutorConfig = Field(default_factory=CodeExecutorConfig)
     database_config: DatabaseConfig = Field(default_factory=DatabaseConfig)
     knowledge_node_llm_config: KnowledgeNodeLLMConfig = Field(

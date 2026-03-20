@@ -1952,8 +1952,8 @@ class WorkflowEngineBuilder:
             # Check for duplicate nodes
             if node.id in self.built_nodes:
                 raise CustomException(
-                    CodeEnum.ENG_BUILD_ERROR,
-                    err_msg=f"Node: {node.id} duplicate build",
+                    CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
+                    err_msg=f"{node.id} duplicate",
                 )
             self.built_nodes[node.id] = spark_node_instance
 
@@ -2043,7 +2043,7 @@ class WorkflowEngineBuilder:
 
         if not node_class:
             raise CustomException(
-                CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR,
+                CodeEnum.ENG_RUN_ERROR,
                 err_msg=f"Current workflow does not support node type: {node_type}",
             )
 
@@ -2075,7 +2075,7 @@ class WorkflowEngineBuilder:
         ) in self.iteration_engine_nodes.items():
             if iteration_start_node_id not in self.built_nodes:
                 raise CustomException(
-                    CodeEnum.ENG_BUILD_ERROR,
+                    CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                     err_msg=f"Iteration start node: {iteration_start_node_id} does not exist",
                     cause_error=f"Iteration start node: {iteration_start_node_id} does not exist",
                 )
@@ -2120,7 +2120,7 @@ class WorkflowEngineBuilder:
         classes = node.data.nodeParam.get("intentChains")
         if not classes:
             raise CustomException(
-                CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR,
+                CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                 err_msg=f"Decision node: {node_id} intent does not exist",
                 cause_error=f"Decision node: {node_id} intent does not exist",
             )
@@ -2149,7 +2149,7 @@ class WorkflowEngineBuilder:
         iteration_start_node_id = node.data.nodeParam.get("IterationStartNodeId", "")
         if not iteration_start_node_id:
             raise CustomException(
-                CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR,
+                CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                 err_msg=f"Iteration node: {node.id} iteration start node does not exist",
             )
         self.iteration_engine_nodes[iteration_start_node_id] = node_id
@@ -2188,14 +2188,14 @@ class WorkflowEngineBuilder:
 
         if not source_node:
             raise CustomException(
-                CodeEnum.ENG_BUILD_ERROR,
+                CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                 err_msg=f"Node not found {source_node_id}",
                 cause_error=f"Node not found {source_node_id}",
             )
 
         if not target_node:
             raise CustomException(
-                CodeEnum.ENG_BUILD_ERROR,
+                CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                 err_msg=f"Node not found {target_node_id}",
                 cause_error=f"Node not found {target_node_id}",
             )

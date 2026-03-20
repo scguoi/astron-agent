@@ -1,5 +1,4 @@
-from workflow.extensions.middleware.base import Service
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.extensions.middleware.base import Service, ServiceType
 
 
 class LogService(Service):

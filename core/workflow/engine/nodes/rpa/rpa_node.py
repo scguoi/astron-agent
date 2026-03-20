@@ -136,7 +136,7 @@ class RPANode(BaseNode):
                 inputs=inputs,
                 outputs=outputs,
                 error=CustomException(
-                    CodeEnum.RPA_REQUEST_ERROR,
+                    CodeEnum.RPA_NODE_ERROR,
                     cause_error=e,
                 ),
                 node_id=self.node_id,

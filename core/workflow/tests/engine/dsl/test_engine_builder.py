@@ -87,7 +87,7 @@ class TestWorkflowEngineBuilder:
             with pytest.raises(CustomException) as exc_info:
                 self.builder._validate_node("invalid_type:node_id", mock_node)
 
-            assert exc_info.value.code == CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR.code
+            assert exc_info.value.code == CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR.code
 
     def test_merge_message_dependencies(self) -> None:
         """Test merging message dependencies from multiple dependency lists."""
@@ -173,7 +173,7 @@ class TestWorkflowEngineBuilderAdvanced:
         with pytest.raises(CustomException) as exc_info:
             self.builder._build_single_edge_dependency(mock_edge)
 
-        assert exc_info.value.code == CodeEnum.ENG_BUILD_ERROR.code
+        assert exc_info.value.code == CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR.code
 
     def test_build_single_edge_dependency_target_not_found(self) -> None:
         """Test building single edge dependency when target node is not found."""
@@ -187,7 +187,7 @@ class TestWorkflowEngineBuilderAdvanced:
         with pytest.raises(CustomException) as exc_info:
             self.builder._build_single_edge_dependency(mock_edge)
 
-        assert exc_info.value.code == CodeEnum.ENG_BUILD_ERROR.code
+        assert exc_info.value.code == CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR.code
 
     def test_build_single_edge_dependency_fail_handle(self) -> None:
         """Test building single edge dependency with fail handle."""
@@ -237,7 +237,7 @@ class TestWorkflowEngineBuilderAdvanced:
         with pytest.raises(CustomException) as exc_info:
             self.builder._build_iteration_engines()
 
-        assert exc_info.value.code == CodeEnum.ENG_BUILD_ERROR.code
+        assert exc_info.value.code == CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR.code
         assert exc_info.value.message == (
             "Workflow engine build failed"
             "(Iteration start node: missing_node does not exist)"
@@ -252,7 +252,7 @@ class TestWorkflowEngineBuilderAdvanced:
         with pytest.raises(CustomException) as exc_info:
             self.builder._handle_decision_making_node("test_node", mock_node)
 
-        assert exc_info.value.code == CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR.code
+        assert exc_info.value.code == CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR.code
 
     def test_handle_iteration_node_missing_start_node_id(self) -> None:
         """Test handling iteration node when start node ID is missing."""
@@ -264,7 +264,7 @@ class TestWorkflowEngineBuilderAdvanced:
         with pytest.raises(CustomException) as exc_info:
             self.builder._handle_iteration_node("test_node", mock_node)
 
-        assert exc_info.value.code == CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR.code
+        assert exc_info.value.code == CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR.code
 
     def test_has_normal_path_true(self) -> None:
         """Test checking if normal path exists between nodes."""

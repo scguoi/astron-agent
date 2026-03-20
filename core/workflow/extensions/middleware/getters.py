@@ -8,15 +8,18 @@ type-safe access to services and handle the casting to appropriate types.
 
 from typing import Iterator, cast
 
-from sqlmodel import Session  # type: ignore
+from sqlmodel import Session
 
+from workflow.extensions.middleware.asynchronous.base import (
+    AsyncTaskService,  # type: ignore
+)
+from workflow.extensions.middleware.base import ServiceType
 from workflow.extensions.middleware.cache.base import BaseCacheService
 from workflow.extensions.middleware.database.manager import DatabaseService
 from workflow.extensions.middleware.kafka.manager import KafkaProducerService
 from workflow.extensions.middleware.manager import service_manager
 from workflow.extensions.middleware.masdk.manager import MASDKService
 from workflow.extensions.middleware.oss.base import BaseOSSService
-from workflow.extensions.middleware.utils import ServiceType
 
 
 def get_db_service() -> "DatabaseService":
@@ -79,3 +82,13 @@ def get_masdk_service() -> "MASDKService":
     :return: The MASDK service instance
     """
     return cast(MASDKService, service_manager.get(ServiceType.MASDK_SERVICE))
+
+
+def get_async_service() -> "AsyncTaskService":
+    """
+    Get the asynchronous task service instance.
+
+    :return: The asynchronous task service instance
+    """
+
+    return cast(AsyncTaskService, service_manager.get(ServiceType.ASYNC_TASK_SERVICE))

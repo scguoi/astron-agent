@@ -235,8 +235,17 @@ class CodeEnum(Enum):
 
     # 21300
     RPA_REQUEST_ERROR = (21300, "RPA node request failed")
+    RPA_NODE_ERROR = (21301, "RPA node execution failed")
 
     # 21400
+    ASYNC_TASK_CREATE_ERROR = (21400, "Asynchronous task creation failed")
+    ASYNC_TASK_SAVE_ERROR = (21401, "Asynchronous task save failed")
+    ASYNC_TASK_UPDATE_ERROR = (21402, "Asynchronous task update failed")
+    ASYNC_TASK_GET_ERROR = (21403, "Asynchronous task retrieval failed")
+    ASYNC_TASK_NOT_FOUND_ERROR = (21404, "Asynchronous task not found")
+    ASYNC_TASK_STATUS_ERROR = (21405, "Asynchronous task status error")
+    ASYNC_TASK_EXECUTION_ERROR = (21406, "Asynchronous task execution failed")
+    ASYNC_TASK_CANCEL_ERROR = (21407, "Asynchronous task cancellation failed")
 
     # 21500
     MCP_REQUEST_ERROR = (21500, "MCP node request failed")
@@ -256,7 +265,7 @@ class CodeEnum(Enum):
     NODE_DEBUG_ERROR = (21700, "Node debug failed")
 
     # SparkLink related errors
-    SPARK_LINK_ACTION_ERROR = (21800, "Tool request failed")
+    SPARK_LINK_ERROR = (21800, "Tool failed")
     SPARK_LINK_APP_INIT_ERROR = (21801, "Tool initialization failed")
     SPARK_LINK_JSON_PROTOCOL_PARSER_ERROR = (21802, "Tool JSON protocol parsing failed")
     SPARK_LINK_JSON_SCHEMA_VALIDATE_ERROR = (21803, "Tool protocol validation failed")
@@ -284,6 +293,10 @@ class CodeEnum(Enum):
         21812,
         "Third-party tool request failed",
     )
+    SPARK_LINK_COMMON_ERROR = (
+        21813,
+        "General error",
+    )
 
     # Parameter extractor errors
     EXTRACT_EXECUTION_ERROR = (21900, "Parameter extraction failed")
@@ -300,7 +313,7 @@ class CodeEnum(Enum):
     # 22200
 
     # Engine errors
-    ENG_BUILD_ERROR = (22300, "Workflow engine build failed")
+    ENG_PROTOCOL_VALIDATE_ERROR = (22300, "Workflow engine protocol validation failed")
     ENG_RUN_ERROR = (22301, "Workflow engine run failed")
     NODE_RUN_ERROR = (22302, "Node execution failed")
     NODE_RUN_TIMEOUT_ERROR = (22303, "Node execution timeout")
@@ -326,6 +339,9 @@ class CodeEnum(Enum):
 
     # Variable node errors
     VARIABLE_NODE_EXECUTION_ERROR = (22900, "Variable node execution failed")
+
+    # Memory node errors
+    MEMORY_NODE_EXECUTION_ERROR = (22950, "Memory node execution failed")
 
     # 23000
 
@@ -372,6 +388,21 @@ class CodeEnum(Enum):
     EVENT_REGISTRY_NOT_FOUND_ERROR = (
         23900,
         "Conversation has timed out or does not exist",
+    )
+
+    EVENT_REGISTRY_LOCK_ERROR = (
+        23901,
+        "Conversation is running, please do not resume repeatedly",
+    )
+
+    EVENT_REGISTRY_NOT_LOCK_ERROR = (
+        23902,
+        "Conversation does not exist or is not locked",
+    )
+
+    EVENT_REGISTRY_NOT_SUPPORT_ERROR = (
+        23903,
+        "Conversation events are not supported for resume",
     )
 
     @property

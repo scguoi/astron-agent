@@ -153,7 +153,7 @@ class Resp:
         return JSONResponse(content=ret)
 
     @staticmethod
-    def error(code: int, message: str, sid: str = "") -> JSONResponse:
+    def error(code: int, message: str, sid: str = "", data: Any = None) -> JSONResponse:
         """
         Create an error JSON response.
 
@@ -165,6 +165,8 @@ class Resp:
         ret = {"code": code, "message": message}
         if sid:
             ret["sid"] = sid
+        if data:
+            ret["data"] = data
         return JSONResponse(content=ret)
 
     @staticmethod
@@ -183,4 +185,24 @@ class Resp:
             "id": sid,
             "created": time.time() * 1000,
         }
+        return JSONResponse(content=ret)
+
+    @staticmethod
+    def async_success(data: Any = None, id: "str | None" = None) -> JSONResponse:
+        ret = {"code": 0, "message": "success"}
+        if data:
+            ret["data"] = data
+        if id:
+            ret["id"] = id
+        return JSONResponse(content=ret)
+
+    @staticmethod
+    def async_error(
+        code: int, message: str, id: str = "", data: Any = None
+    ) -> JSONResponse:
+        ret = {"code": code, "message": message}
+        if data:
+            ret["data"] = data
+        if id:
+            ret["id"] = id
         return JSONResponse(content=ret)

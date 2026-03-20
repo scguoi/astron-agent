@@ -12,8 +12,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlmodel import Session  # type: ignore
 
 from workflow.configs.app_config import DatabaseConfig
-from workflow.extensions.middleware.base import Service
-from workflow.extensions.middleware.utils import ServiceType
+from workflow.extensions.middleware.base import Service, ServiceType
 
 
 class DatabaseService(Service):

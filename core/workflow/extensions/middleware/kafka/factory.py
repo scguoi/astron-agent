@@ -1,6 +1,6 @@
-import os
 from typing import Any, Optional
 
+from workflow.configs import workflow_config
 from workflow.extensions.middleware.factory import ServiceFactory
 from workflow.extensions.middleware.kafka.manager import KafkaProducerService
 
@@ -30,16 +30,16 @@ class KafkaProducerServiceFactory(ServiceFactory):
         :raises ValueError: If KAFKA_SERVERS environment variable is not configured
         """
         # Use provided servers or fall back to environment variable
-        servers = servers or os.getenv("KAFKA_SERVERS")
+        servers = servers or workflow_config.kafka_config.kafka_servers
         if not servers:
             raise ValueError("KAFKA_SERVERS environment variable is not configured")
 
         # Build configuration dictionary with bootstrap servers and additional parameters
         config = {"bootstrap.servers": servers, **kwargs}
-        protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "SASL_PLAINTEXT").upper()
-        mechanism = os.getenv("KAFKA_SASL_MECHANISM", "PLAIN").upper()
-        username = os.getenv("KAFKA_SASL_USERNAME", "")
-        password = os.getenv("KAFKA_SASL_PASSWORD", "")
+        protocol = workflow_config.kafka_config.kafka_protocol
+        mechanism = workflow_config.kafka_config.kafka_mechanism
+        username = workflow_config.kafka_config.kafka_username
+        password = workflow_config.kafka_config.kafka_password
         if username and password:
             config.update(
                 {

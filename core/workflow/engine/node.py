@@ -678,7 +678,7 @@ class NodeFactory:
         node_class = tool_classes.get(node.get_node_type())
         if not node_class:
             raise CustomException(
-                CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR,
+                CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                 err_msg=f"Current workflow does not support node type: {node.get_node_type()}",
                 cause_error=f"Current workflow does not support node type: {node.get_node_type()}",
             )
@@ -739,7 +739,7 @@ class NodeFactory:
                     f"custom_output {custom_output} not formatted"
                 )
                 raise CustomException(
-                    CodeEnum.ENG_NODE_PROTOCOL_VALIDATE_ERROR,
+                    CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                     err_msg=f"Node set output content: {custom_output} does not match format",
                 )
         else:

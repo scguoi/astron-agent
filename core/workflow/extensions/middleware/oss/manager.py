@@ -5,7 +5,6 @@ This module provides concrete implementations of OSS services,
 including S3-compatible storage and iFly Gateway Storage clients.
 """
 
-import asyncio
 import json
 from typing import Optional
 from urllib.parse import urlencode
@@ -98,6 +97,11 @@ class S3Service(BaseOSSService, Service):
                     f"✅ Public read policy applied to bucket '{bucket_name}'."
                 )
 
+            elif error_code == 403:
+                logger.warning(
+                    f"⚠️ Bucket '{bucket_name}' exists but is not accessible."
+                )
+
             else:
                 raise
 
@@ -144,12 +148,8 @@ class S3Service(BaseOSSService, Service):
 
         try:
             # Set public read access
-            await asyncio.to_thread(
-                self.client.put_object,
-                Bucket=bucket_name,
-                Key=filename,
-                Body=file_bytes,
-                ACL="public-read",
+            self.client.put_object(
+                Bucket=bucket_name, Key=filename, Body=file_bytes, ACL="public-read"
             )
             return f"{self.oss_download_host}/{bucket_name}/{filename}"
         except Exception as e:

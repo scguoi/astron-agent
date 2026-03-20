@@ -86,7 +86,7 @@ class File(BaseModel):
                             )
                         else:
                             raise CustomException(
-                                err_code=CodeEnum.FILE_VARIABLE_PROTOCOL_ERROR,
+                                err_code=CodeEnum.ENG_PROTOCOL_VALIDATE_ERROR,
                                 err_msg="Error: fileType field is incorrect",
                             )
         except CustomException as err:

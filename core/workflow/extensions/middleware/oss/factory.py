@@ -7,13 +7,13 @@ based on configuration environment variables.
 
 import os
 
+from workflow.extensions.middleware.base import ServiceType
 from workflow.extensions.middleware.factory import ServiceFactory
 from workflow.extensions.middleware.oss.base import BaseOSSService
 from workflow.extensions.middleware.oss.manager import (
     IFlyGatewayStorageClient,
     S3Service,
 )
-from workflow.extensions.middleware.utils import ServiceType
 
 
 class OSSServiceFactory(ServiceFactory):

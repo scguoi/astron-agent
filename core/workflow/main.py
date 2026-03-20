@@ -6,7 +6,6 @@ It initializes the FastAPI application with all necessary middleware, routers, a
 extensions including metrics, tracing, and graceful shutdown handling.
 """
 
-import multiprocessing
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -29,7 +28,9 @@ from workflow.extensions.fastapi.lifespan.utils import print_routes
 from workflow.extensions.fastapi.middleware.auth import AuthMiddleware
 from workflow.extensions.fastapi.middleware.otlp import OtlpMiddleware
 from workflow.extensions.graceful_shutdown.graceful_shutdown import GracefulShutdown
+from workflow.extensions.middleware.base import FactoryConfig, ServiceType
 from workflow.extensions.middleware.initialize import initialize_services
+from workflow.utils.system_workers import worker_count
 
 
 def create_app() -> FastAPI:
@@ -47,7 +48,18 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[Any]:
 
         # Initialize application services and middleware
-        initialize_services()
+        initialize_services(
+            [
+                FactoryConfig(name=ServiceType.ASYNC_TASK_SERVICE),
+                FactoryConfig(name=ServiceType.CACHE_SERVICE),
+                FactoryConfig(name=ServiceType.DATABASE_SERVICE),
+                FactoryConfig(name=ServiceType.KAFKA_PRODUCER_SERVICE),
+                FactoryConfig(name=ServiceType.LOG_SERVICE),
+                FactoryConfig(name=ServiceType.MASDK_SERVICE),
+                FactoryConfig(name=ServiceType.OSS_SERVICE),
+                FactoryConfig(name=ServiceType.OTLP_SERVICE),
+            ]
+        )
 
         # Run database migration before starting the service
         run_database_migration()
@@ -104,17 +116,6 @@ def create_app() -> FastAPI:
     return app
 
 
-def _get_worker_count() -> int:
-    """
-    Get the number of workers to use for the application.
-    """
-    worker_count: int = int(os.getenv("WORKERS", "0"))
-    if worker_count == 0:
-        worker_count = multiprocessing.cpu_count() + 1
-    logger.debug(f"🔍 Worker count: {worker_count}")
-    return worker_count
-
-
 if __name__ == "__main__":
     # Main entry point for the Spark Flow application.
     # This block initializes the application environment and starts the Uvicorn
@@ -128,7 +129,7 @@ if __name__ == "__main__":
         app="main:create_app",  # Reference to the FastAPI app factory function
         host="0.0.0.0",  # Bind to all available network interfaces
         port=int(os.getenv("SERVICE_PORT", "7880")),  # Default port 7880
-        workers=_get_worker_count(),
+        workers=worker_count,
         reload=(
             os.getenv("RELOAD", "false").lower() == "true"
         ),  # Enable auto-reload for development

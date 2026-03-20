@@ -54,7 +54,7 @@ class ChatVo(BaseModel):
     :param version: Version number
     """
 
-    flow_id: str = Field(description="Workflow ID")  # Required
+    flow_id: str = Field(min_length=1, description="Workflow ID")  # Required
     uid: str = Field("", max_length=40, description="User ID, maximum 40 characters")
     stream: bool = Field(True, description="Whether to use streaming")
     ext: Dict[str, Any] = Field({}, description="Extended fields")

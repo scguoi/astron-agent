@@ -568,7 +568,7 @@ class PGSqlNode(BaseNode):
         :return: Node execution result
         """
         # Set user ID from span
-        self.uid = span.uid
+        self.uid = variable_pool.system_params.get(ParamKey.Uid, default="")
         return await self.execute(variable_pool, span)
 
     async def execute(
