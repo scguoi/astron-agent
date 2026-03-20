@@ -962,6 +962,8 @@ public class PromptChatService {
         return value;
     }
 
+    private record ManagedToolResult(String content, String traceJson) {}
+
     private record PreparedRequest(String url, String body, String accept) {}
 
     /**
