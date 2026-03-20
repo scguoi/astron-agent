@@ -119,9 +119,10 @@ class EventRegistry(BaseShutdownEvent):
 
     @classmethod
     def lock_event(cls, event_id: str, sid: str, timeout: int = 180) -> None:
-        get_cache_service().set(
+        get_cache_service().set_ex(
             key=f"event_lock:{event_id}",
             value=f"locked_by_{sid}",
+            expire_time=timeout,
         )
 
     @classmethod
