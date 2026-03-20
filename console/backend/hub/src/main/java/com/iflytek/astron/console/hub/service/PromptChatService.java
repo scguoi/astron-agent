@@ -30,15 +30,8 @@ import java.util.Objects;
 public class PromptChatService {
     private static final String PROVIDER_GOOGLE = "google";
     private static final String PROVIDER_ANTHROPIC = "anthropic";
+    private static final String OPENAI_SEARCH_TOOL_NAME = "ifly_search";
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
-    private static final String MANAGED_SEARCH_CONTEXT_NOTICE = """
-            System notice: the platform has executed a managed real-time web search for the latest user request.
-            Treat the returned search context as trusted external evidence and use it when producing the final answer.
-            Keep source reference indices like [1] when they appear in the provided search summary.
-            """;
-    private static final String MANAGED_SEARCH_UNAVAILABLE_NOTICE =
-            "System notice: the platform could not complete the enabled real-time web search for this request. " +
-                    "You must explicitly tell the user that real-time web search was unavailable and no live web search result was used.";
 
     private final OkHttpClient httpClient;
 
@@ -85,29 +78,13 @@ public class PromptChatService {
      * @throws IOException If HTTP request fails
      */
     private void performChatRequest(JSONObject request, SseEmitter emitter, String streamId, ChatReqRecords chatReqRecords, boolean edit, boolean isDebug) throws IOException {
-        prepareManagedWebSearch(request, chatReqRecords);
         String provider = normalizeProvider(request.getString("provider"));
-        PreparedRequest preparedRequest = buildPreparedRequest(request, provider);
-
-        Request.Builder requestBuilder = new Request.Builder()
-                .url(preparedRequest.url())
-                .post(RequestBody.create(preparedRequest.body(), JSON_MEDIA_TYPE))
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Accept", preparedRequest.accept());
-
-        if (PROVIDER_GOOGLE.equals(provider)) {
-            requestBuilder.addHeader("x-goog-api-key", request.getString("apiKey"));
-        } else if (PROVIDER_ANTHROPIC.equals(provider)) {
-            requestBuilder.addHeader("x-api-key", request.getString("apiKey"));
-            requestBuilder.addHeader("anthropic-version", "2023-06-01");
-            if (StringUtils.isNotBlank(request.getString("anthropicBeta"))) {
-                requestBuilder.addHeader("anthropic-beta", request.getString("anthropicBeta"));
-            }
-        } else {
-            requestBuilder.addHeader("Authorization", "Bearer " + request.getString("apiKey"));
+        if (shouldHandleOpenAiFunctionToolCall(provider, request)
+                && handleOpenAiFunctionToolCall(request, emitter, streamId, chatReqRecords, edit, isDebug, provider)) {
+            return;
         }
-
-        Request httpRequest = requestBuilder.build();
+        PreparedRequest preparedRequest = buildPreparedRequest(request, provider);
+        Request httpRequest = buildHttpRequest(request, preparedRequest, provider);
 
         Call call = httpClient.newCall(httpRequest);
         log.info("request:{}", request);
@@ -243,6 +220,209 @@ public class PromptChatService {
         if (!streamEnded) {
             handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug,
                     StringUtils.isNotBlank(managedSearchTrace));
+        }
+    }
+
+    private boolean shouldHandleOpenAiFunctionToolCall(String provider, JSONObject request) {
+        if (PROVIDER_GOOGLE.equals(provider) || PROVIDER_ANTHROPIC.equals(provider)) {
+            return false;
+        }
+        return hasOpenAiSearchTool(request.getJSONArray("tools"));
+    }
+
+    private boolean hasOpenAiSearchTool(JSONArray tools) {
+        if (tools == null || tools.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < tools.size(); i++) {
+            JSONObject tool = tools.getJSONObject(i);
+            JSONObject function = tool == null ? null : tool.getJSONObject("function");
+            if (function != null && StringUtils.equals(function.getString("name"), OPENAI_SEARCH_TOOL_NAME)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean handleOpenAiFunctionToolCall(JSONObject request, SseEmitter emitter, String streamId,
+            ChatReqRecords chatReqRecords, boolean edit, boolean isDebug, String provider) throws IOException {
+        JSONObject planningRequest = JSON.parseObject(request.toJSONString());
+        planningRequest.put("stream", false);
+
+        JSONObject planningResponse;
+        try {
+            planningResponse = executeJsonRequest(planningRequest, provider);
+        } catch (Exception e) {
+            log.warn("OpenAI-compatible tool planning failed, fallback to normal request, streamId: {}, error: {}", streamId, e.getMessage());
+            request.remove("tools");
+            request.remove("toolChoice");
+            return false;
+        }
+
+        JSONArray toolCalls = extractAssistantToolCalls(planningResponse);
+        if (toolCalls == null || toolCalls.isEmpty()) {
+            JSONObject normalizedData = normalizeSynchronousOpenAiResponse(planningResponse);
+            StringBuffer finalResult = new StringBuffer(extractAssistantContent(planningResponse));
+            StringBuffer thinkingResult = new StringBuffer();
+            StringBuffer sid = new StringBuffer(StringUtils.defaultString(planningResponse.getString("id")));
+            StringBuffer traceResult = new StringBuffer();
+            if (normalizedData != null) {
+                tryServeSSEData(emitter, normalizedData, streamId);
+            }
+            handleStreamComplete(emitter, streamId, finalResult, thinkingResult, chatReqRecords, sid, traceResult, edit, isDebug, false);
+            return true;
+        }
+
+        ManagedToolResult toolResult = executeSearchTool(toolCalls, request, chatReqRecords);
+        if (StringUtils.isNotBlank(toolResult.traceJson())) {
+            request.put("managedSearchTrace", toolResult.traceJson());
+        } else {
+            request.remove("managedSearchTrace");
+        }
+        appendToolMessages(request, extractAssistantMessage(planningResponse), toolCalls, toolResult.content());
+        request.remove("tools");
+        request.remove("toolChoice");
+        request.put("stream", true);
+        return false;
+    }
+
+    private JSONObject executeJsonRequest(JSONObject request, String provider) throws IOException {
+        PreparedRequest preparedRequest = buildPreparedRequest(request, provider);
+        Request httpRequest = buildHttpRequest(request, preparedRequest, provider);
+        try (Response response = httpClient.newCall(httpRequest).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("Request failed: " + response.message());
+            }
+            ResponseBody body = response.body();
+            if (body == null) {
+                throw new IOException("Response body is empty");
+            }
+            return JSON.parseObject(body.string());
+        }
+    }
+
+    private Request buildHttpRequest(JSONObject request, PreparedRequest preparedRequest, String provider) {
+        Request.Builder requestBuilder = new Request.Builder()
+                .url(preparedRequest.url())
+                .post(RequestBody.create(preparedRequest.body(), JSON_MEDIA_TYPE))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept", preparedRequest.accept());
+
+        if (PROVIDER_GOOGLE.equals(provider)) {
+            requestBuilder.addHeader("x-goog-api-key", request.getString("apiKey"));
+        } else if (PROVIDER_ANTHROPIC.equals(provider)) {
+            requestBuilder.addHeader("x-api-key", request.getString("apiKey"));
+            requestBuilder.addHeader("anthropic-version", "2023-06-01");
+            if (StringUtils.isNotBlank(request.getString("anthropicBeta"))) {
+                requestBuilder.addHeader("anthropic-beta", request.getString("anthropicBeta"));
+            }
+        } else {
+            requestBuilder.addHeader("Authorization", "Bearer " + request.getString("apiKey"));
+        }
+        return requestBuilder.build();
+    }
+
+    private JSONArray extractAssistantToolCalls(JSONObject response) {
+        JSONObject message = extractAssistantMessage(response);
+        return message == null ? null : message.getJSONArray("tool_calls");
+    }
+
+    private JSONObject extractAssistantMessage(JSONObject response) {
+        if (response == null) {
+            return null;
+        }
+        JSONArray choices = response.getJSONArray("choices");
+        if (choices == null || choices.isEmpty()) {
+            return null;
+        }
+        JSONObject firstChoice = choices.getJSONObject(0);
+        return firstChoice == null ? null : firstChoice.getJSONObject("message");
+    }
+
+    private String extractAssistantContent(JSONObject response) {
+        JSONObject message = extractAssistantMessage(response);
+        return message == null ? "" : StringUtils.defaultString(message.getString("content"));
+    }
+
+    private JSONObject normalizeSynchronousOpenAiResponse(JSONObject response) {
+        if (response == null) {
+            return null;
+        }
+        JSONObject normalized = new JSONObject();
+        if (StringUtils.isNotBlank(response.getString("id"))) {
+            normalized.put("id", response.getString("id"));
+        }
+        JSONArray choices = response.getJSONArray("choices");
+        if (choices == null || choices.isEmpty()) {
+            return normalized;
+        }
+        JSONObject firstChoice = choices.getJSONObject(0);
+        JSONObject message = firstChoice == null ? null : firstChoice.getJSONObject("message");
+        String content = message == null ? "" : message.getString("content");
+        JSONArray normalizedChoices = new JSONArray();
+        normalizedChoices.add(new JSONObject()
+                .fluentPut("delta", new JSONObject().fluentPut("content", StringUtils.defaultString(content))));
+        normalized.put("choices", normalizedChoices);
+        return normalized;
+    }
+
+    private ManagedToolResult executeSearchTool(JSONArray toolCalls, JSONObject request, ChatReqRecords chatReqRecords) {
+        String query = resolveSearchQueryFromToolCalls(toolCalls, request);
+        String userId = StringUtils.defaultIfBlank(
+                chatReqRecords == null ? request.getString("userId") : chatReqRecords.getUid(),
+                "managed-web-search");
+        ManagedWebSearchService.SearchAugmentation augmentation = managedWebSearchService.search(query, userId);
+        if (augmentation.failed()) {
+            String errorMessage = StringUtils.defaultIfBlank(augmentation.errorMessage(), "real-time web search unavailable");
+            return new ManagedToolResult("实时联网搜索失败：" + errorMessage, "");
+        }
+        return new ManagedToolResult(augmentation.summary(), augmentation.traceJson());
+    }
+
+    private String resolveSearchQueryFromToolCalls(JSONArray toolCalls, JSONObject request) {
+        for (int i = 0; i < toolCalls.size(); i++) {
+            JSONObject toolCall = toolCalls.getJSONObject(i);
+            JSONObject function = toolCall == null ? null : toolCall.getJSONObject("function");
+            if (function == null || !StringUtils.equals(function.getString("name"), OPENAI_SEARCH_TOOL_NAME)) {
+                continue;
+            }
+            String arguments = function.getString("arguments");
+            if (StringUtils.isBlank(arguments)) {
+                continue;
+            }
+            try {
+                JSONObject argumentJson = JSON.parseObject(arguments);
+                String query = argumentJson == null ? null : argumentJson.getString("query");
+                if (StringUtils.isNotBlank(query)) {
+                    return query;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse tool arguments: {}", arguments, e);
+            }
+        }
+        return resolveLatestUserQuery(request.getJSONArray("messages"));
+    }
+
+    private void appendToolMessages(JSONObject request, JSONObject assistantMessage, JSONArray toolCalls, String toolContent) {
+        JSONArray messages = request.getJSONArray("messages");
+        if (messages == null) {
+            messages = new JSONArray();
+            request.put("messages", messages);
+        }
+        messages.add(new JSONObject()
+                .fluentPut("role", "assistant")
+                .fluentPut("content", assistantMessage == null ? "" : StringUtils.defaultString(assistantMessage.getString("content")))
+                .fluentPut("tool_calls", toolCalls));
+        for (int i = 0; i < toolCalls.size(); i++) {
+            JSONObject toolCall = toolCalls.getJSONObject(i);
+            JSONObject function = toolCall == null ? null : toolCall.getJSONObject("function");
+            if (function == null || !StringUtils.equals(function.getString("name"), OPENAI_SEARCH_TOOL_NAME)) {
+                continue;
+            }
+            messages.add(new JSONObject()
+                    .fluentPut("role", "tool")
+                    .fluentPut("tool_call_id", toolCall.getString("id"))
+                    .fluentPut("content", toolContent));
         }
     }
 
@@ -386,32 +566,6 @@ public class PromptChatService {
         }
     }
 
-    private void prepareManagedWebSearch(JSONObject request, ChatReqRecords chatReqRecords) {
-        if (!request.getBooleanValue("managedWebSearch")) {
-            return;
-        }
-
-        String searchQuery = StringUtils.defaultIfBlank(
-                request.getString("managedSearchQuery"),
-                resolveLatestUserQuery(request.getJSONArray("messages")));
-        String searchUserId = StringUtils.defaultIfBlank(
-                chatReqRecords == null ? request.getString("userId") : chatReqRecords.getUid(),
-                "managed-web-search");
-
-        ManagedWebSearchService.SearchAugmentation augmentation = managedWebSearchService.search(
-                searchQuery,
-                searchUserId);
-
-        if (augmentation.failed()) {
-            request.remove("managedWebSearch");
-            prependSystemNotice(request, MANAGED_SEARCH_UNAVAILABLE_NOTICE);
-            return;
-        }
-
-        request.put("managedSearchTrace", augmentation.traceJson());
-        prependSystemNotice(request, MANAGED_SEARCH_CONTEXT_NOTICE + "\n\nManaged search summary:\n" + augmentation.summary());
-    }
-
     private String resolveLatestUserQuery(JSONArray messages) {
         if (messages == null || messages.isEmpty()) {
             return "";
@@ -441,17 +595,6 @@ public class PromptChatService {
         tryServeSSEData(emitter, syntheticData, streamId);
     }
 
-    private void prependSystemNotice(JSONObject request, String notice) {
-        JSONArray messages = request.getJSONArray("messages");
-        if (messages == null) {
-            messages = new JSONArray();
-            request.put("messages", messages);
-        }
-        messages.add(0, new JSONObject()
-                .fluentPut("role", "system")
-                .fluentPut("content", notice));
-    }
-
     private PreparedRequest buildPreparedRequest(JSONObject request, String provider) {
         if (PROVIDER_GOOGLE.equals(provider)) {
             return new PreparedRequest(
@@ -465,10 +608,11 @@ public class PromptChatService {
                     JSON.toJSONString(buildAnthropicRequestBody(request)),
                     "text/event-stream");
         }
+        boolean stream = !request.containsKey("stream") || request.getBooleanValue("stream");
         return new PreparedRequest(
                 request.getString("url"),
                 JSON.toJSONString(buildOpenAiCompatibleRequestBody(request)),
-                "text/event-stream");
+                stream ? "text/event-stream" : "application/json");
     }
 
     private JSONObject buildGoogleRequestBody(JSONObject request) {
@@ -573,7 +717,7 @@ public class PromptChatService {
             }
             body.put(key, value);
         });
-        body.put("stream", true);
+        body.put("stream", !request.containsKey("stream") || request.getBooleanValue("stream"));
         return body;
     }
 
