@@ -91,7 +91,7 @@ common:
   apiSecret: ${COMMON_API_SECRET:apiSecret}
 
 workflow-trace:
-  es-url: ${WORKFLOW_TRACE_ES_URL:http://127.0.0.1:9200}
+  es-url: ${WORKFLOW_TRACE_ES_URL:http://elasticsearch:9200}
   es-index: ${WORKFLOW_TRACE_ES_INDEX:spark-agent-builder-*}
   es-username: ${WORKFLOW_TRACE_ES_USERNAME:}
   es-password: ${WORKFLOW_TRACE_ES_PASSWORD:}
