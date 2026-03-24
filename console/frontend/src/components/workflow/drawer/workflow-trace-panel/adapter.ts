@@ -61,15 +61,15 @@ const extractModelName = (node: WorkflowTraceNode): string | undefined => {
   const outputModel =
     typeof node.output?.model === 'string' ? (node.output.model as string) : '';
   const config = node.config || {};
-  const configDomain = typeof config.domain === 'string' ? config.domain : '';
   const configModelName =
     typeof config.model_name === 'string' ? config.model_name : '';
   const configModel = typeof config.model === 'string' ? config.model : '';
+  const configDomain = typeof config.domain === 'string' ? config.domain : '';
 
   return (
-    configDomain ||
     configModelName ||
     configModel ||
+    configDomain ||
     inputModel ||
     outputModel ||
     undefined
@@ -77,24 +77,11 @@ const extractModelName = (node: WorkflowTraceNode): string | undefined => {
 };
 
 const isModelDrivenNode = (node: WorkflowTraceNode): boolean => {
-  const modelName = extractModelName(node);
-  const source = `${node.nodeId} ${node.nodeName} ${node.nodeType}`.toLowerCase();
   const config = node.config || {};
+  const configModelName =
+    typeof config.model_name === 'string' ? config.model_name.trim() : '';
 
-  return (
-    source.includes('spark-llm') ||
-    source.includes('question-answer') ||
-    source.includes('llm') ||
-    source.includes('模型') ||
-    source.includes('大模型') ||
-    source.includes('问答节点') ||
-    Boolean(modelName) ||
-    typeof config.model_name === 'string' ||
-    typeof config.domain === 'string' ||
-    typeof config.base_url === 'string' ||
-    typeof config.url === 'string' ||
-    typeof config.message === 'string'
-  );
+  return Boolean(configModelName);
 };
 
 const getUsage = (usage?: {
@@ -159,6 +146,7 @@ const toTraceNode = (
     type: node.nodeType || 'unknown',
     kind: 'node',
     status: normalizeStatus(node.status),
+    rawStatus: node.rawStatus,
     duration: node.duration || 0,
     offset: Math.max((node.startTime || 0) - (execution.startTime || 0), 0),
     totalTokens: usage.totalTokens,
@@ -193,7 +181,7 @@ const createTraceNodeWithModelChild = (
     {
       ...traceNode,
       id: `${displayId}::model`,
-      name: '大模型详情',
+      name: traceNode.modelName || '大模型详情',
       kind: 'model',
       input: sanitizeModelConfig(node.config) || {},
       output: buildModelChildOutput(node),
@@ -271,7 +259,6 @@ export const buildExecutionOptions = (
   executions.map(execution => ({
     id: execution.sid,
     label: new Date(execution.startTime || 0).toLocaleString(),
-    workflowName: execution.flowName || execution.flowId,
     totalDuration: execution.duration || 0,
     totalTokens: execution.usage?.totalTokens ?? 0,
     status: normalizeStatus(execution.status),

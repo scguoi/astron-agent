@@ -30,6 +30,7 @@ export type WorkflowTraceNode = {
   duration: number;
   firstFrameDuration?: number;
   status: unknown;
+  rawStatus?: Record<string, unknown>;
   usage?: WorkflowTraceUsage;
   input?: Record<string, unknown>;
   config?: Record<string, unknown>;

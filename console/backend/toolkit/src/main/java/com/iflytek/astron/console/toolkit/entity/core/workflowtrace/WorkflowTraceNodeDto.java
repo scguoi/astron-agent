@@ -36,6 +36,9 @@ public class WorkflowTraceNodeDto {
 
     private String status;
 
+    @JsonAlias("raw_status")
+    private Map<String, Object> rawStatus;
+
     private WorkflowTraceUsageDto usage = new WorkflowTraceUsageDto();
 
     private Map<String, Object> input;

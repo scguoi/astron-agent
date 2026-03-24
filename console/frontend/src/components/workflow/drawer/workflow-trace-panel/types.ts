@@ -13,6 +13,7 @@ export type TraceTreeNode = {
   type: string;
   kind?: 'node' | 'model' | 'iteration-group' | 'iteration-run';
   status: TraceStatus;
+  rawStatus?: unknown;
   duration: number;
   offset: number;
   totalTokens: number;
@@ -36,7 +37,6 @@ export type FlattenTraceNode = TraceTreeNode & {
 export type TraceExecutionSummary = {
   id: string;
   label: string;
-  workflowName: string;
   totalDuration: number;
   totalTokens: number;
   status: TraceStatus;
