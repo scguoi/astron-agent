@@ -12,6 +12,5 @@ public class WorkflowTraceProperties {
     private String esIndex;
     private String esUsername;
     private String esPassword;
-    private boolean esVerify;
     private int esTimeoutSeconds;
 }

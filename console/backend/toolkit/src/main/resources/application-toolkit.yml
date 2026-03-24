@@ -95,5 +95,4 @@ workflow-trace:
   es-index: ${WORKFLOW_TRACE_ES_INDEX:spark-agent-builder-*}
   es-username: ${WORKFLOW_TRACE_ES_USERNAME:}
   es-password: ${WORKFLOW_TRACE_ES_PASSWORD:}
-  es-verify: ${WORKFLOW_TRACE_ES_VERIFY:true}
   es-timeout-seconds: ${WORKFLOW_TRACE_ES_TIMEOUT_SECONDS:10}

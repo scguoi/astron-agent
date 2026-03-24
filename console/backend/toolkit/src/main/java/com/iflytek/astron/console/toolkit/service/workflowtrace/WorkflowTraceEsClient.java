@@ -17,16 +17,7 @@ import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -39,8 +30,7 @@ public class WorkflowTraceEsClient {
     private final WorkflowTraceProperties workflowTraceProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private volatile OkHttpClient verifiedClient;
-    private volatile OkHttpClient insecureClient;
+    private volatile OkHttpClient client;
 
     public JsonNode search(JsonNode body) {
         Request.Builder requestBuilder = new Request.Builder()
@@ -78,71 +68,22 @@ public class WorkflowTraceEsClient {
     }
 
     private OkHttpClient getClient() {
-        if (workflowTraceProperties.isEsVerify()) {
-            if (verifiedClient == null) {
-                synchronized (this) {
-                    if (verifiedClient == null) {
-                        verifiedClient = buildClient(true);
-                    }
-                }
-            }
-            return verifiedClient;
-        }
-
-        if (insecureClient == null) {
+        if (client == null) {
             synchronized (this) {
-                if (insecureClient == null) {
-                    insecureClient = buildClient(false);
+                if (client == null) {
+                    client = buildClient();
                 }
             }
         }
-        return insecureClient;
+        return client;
     }
 
-    private OkHttpClient buildClient(boolean verifySsl) {
-        OkHttpClient.Builder builder = new OkHttpClient.Builder()
+    private OkHttpClient buildClient() {
+        return new OkHttpClient.Builder()
                 .connectTimeout(workflowTraceProperties.getEsTimeoutSeconds(), TimeUnit.SECONDS)
                 .readTimeout(workflowTraceProperties.getEsTimeoutSeconds(), TimeUnit.SECONDS)
                 .writeTimeout(workflowTraceProperties.getEsTimeoutSeconds(), TimeUnit.SECONDS)
-                .callTimeout(workflowTraceProperties.getEsTimeoutSeconds(), TimeUnit.SECONDS);
-        if (!verifySsl) {
-            X509TrustManager trustManager = buildTrustAllManager();
-            SSLSocketFactory socketFactory = buildTrustAllSocketFactory(trustManager);
-            builder.sslSocketFactory(socketFactory, trustManager);
-            builder.hostnameVerifier(new TrustAllHostnameVerifier());
-        }
-        return builder.build();
-    }
-
-    private X509TrustManager buildTrustAllManager() {
-        return new X509TrustManager() {
-            @Override
-            public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-
-            @Override
-            public void checkServerTrusted(X509Certificate[] chain, String authType) {}
-
-            @Override
-            public X509Certificate[] getAcceptedIssuers() {
-                return new X509Certificate[0];
-            }
-        };
-    }
-
-    private SSLSocketFactory buildTrustAllSocketFactory(X509TrustManager trustManager) {
-        try {
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, new TrustManager[] {trustManager}, new SecureRandom());
-            return sslContext.getSocketFactory();
-        } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("Failed to initialize insecure SSL context for workflow trace", e);
-        }
-    }
-
-    private static final class TrustAllHostnameVerifier implements HostnameVerifier {
-        @Override
-        public boolean verify(String hostname, SSLSession session) {
-            return true;
-        }
+                .callTimeout(workflowTraceProperties.getEsTimeoutSeconds(), TimeUnit.SECONDS)
+                .build();
     }
 }
