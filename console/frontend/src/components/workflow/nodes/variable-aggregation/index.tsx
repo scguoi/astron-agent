@@ -141,7 +141,8 @@ export const VariableAggregationDetail = memo(
     const output = outputs[0];
     const outputType = output?.schema?.type || 'string';
     const compatibleReferences = useMemo(
-      () => filterVariableAggregationReferences(references as any[], outputType),
+      () =>
+        filterVariableAggregationReferences(references as any[], outputType),
       [references, outputType]
     );
 
@@ -233,54 +234,48 @@ export const VariableAggregationDetail = memo(
     );
 
     const addCandidate = useMemoizedFn(() => {
-      updateNode(
-        (old: any) => {
-          const nextInputs = [
-            ...old.data.inputs,
-            createVariableAggregationInput(old.data.inputs.length + 1, outputType),
-          ];
-          old.data.inputs = normalizeVariableAggregationInputs(
-            nextInputs,
+      updateNode((old: any) => {
+        const nextInputs = [
+          ...old.data.inputs,
+          createVariableAggregationInput(
+            old.data.inputs.length + 1,
             outputType
-          );
-        },
-        true
-      );
+          ),
+        ];
+        old.data.inputs = normalizeVariableAggregationInputs(
+          nextInputs,
+          outputType
+        );
+      }, true);
     });
 
     const moveCandidate = useMemoizedFn((index: number, offset: number) => {
-      updateNode(
-        (old: any) => {
-          const nextIndex = index + offset;
-          if (
-            nextIndex < 0 ||
-            nextIndex >= old.data.inputs.length ||
-            index === nextIndex
-          ) {
-            return;
-          }
-          const nextInputs = [...old.data.inputs];
-          const [targetInput] = nextInputs.splice(index, 1);
-          nextInputs.splice(nextIndex, 0, targetInput);
-          old.data.inputs = normalizeVariableAggregationInputs(
-            nextInputs,
-            outputType
-          );
-        },
-        true
-      );
+      updateNode((old: any) => {
+        const nextIndex = index + offset;
+        if (
+          nextIndex < 0 ||
+          nextIndex >= old.data.inputs.length ||
+          index === nextIndex
+        ) {
+          return;
+        }
+        const nextInputs = [...old.data.inputs];
+        const [targetInput] = nextInputs.splice(index, 1);
+        nextInputs.splice(nextIndex, 0, targetInput);
+        old.data.inputs = normalizeVariableAggregationInputs(
+          nextInputs,
+          outputType
+        );
+      }, true);
     });
 
     const removeCandidate = useMemoizedFn((inputId: string) => {
-      updateNode(
-        (old: any) => {
-          old.data.inputs = normalizeVariableAggregationInputs(
-            old.data.inputs.filter((input: any) => input.id !== inputId),
-            outputType
-          );
-        },
-        true
-      );
+      updateNode((old: any) => {
+        old.data.inputs = normalizeVariableAggregationInputs(
+          old.data.inputs.filter((input: any) => input.id !== inputId),
+          outputType
+        );
+      }, true);
     });
 
     const updateFallbackEnabled = useMemoizedFn((checked: boolean) => {
@@ -392,7 +387,9 @@ export const VariableAggregationDetail = memo(
                               disabled={canvasesDisabled || index === 0}
                               onClick={() => moveCandidate(index, -1)}
                             >
-                              {t('workflow.nodes.variableAggregationNode.moveUp')}
+                              {t(
+                                'workflow.nodes.variableAggregationNode.moveUp'
+                              )}
                             </Button>
                             <Button
                               size="small"
@@ -401,7 +398,9 @@ export const VariableAggregationDetail = memo(
                               }
                               onClick={() => moveCandidate(index, 1)}
                             >
-                              {t('workflow.nodes.variableAggregationNode.moveDown')}
+                              {t(
+                                'workflow.nodes.variableAggregationNode.moveDown'
+                              )}
                             </Button>
                             <img
                               src={remove}
@@ -412,7 +411,9 @@ export const VariableAggregationDetail = memo(
                                     ? 'not-allowed'
                                     : 'pointer',
                                 opacity:
-                                  canvasesDisabled || inputs.length <= 1 ? 0.5 : 1,
+                                  canvasesDisabled || inputs.length <= 1
+                                    ? 0.5
+                                    : 1,
                               }}
                               onClick={() =>
                                 !canvasesDisabled &&
@@ -453,7 +454,9 @@ export const VariableAggregationDetail = memo(
                   <Checkbox
                     disabled={canvasesDisabled}
                     checked={Boolean(nodeParam?.fallbackEnabled)}
-                    onChange={event => updateFallbackEnabled(event.target.checked)}
+                    onChange={event =>
+                      updateFallbackEnabled(event.target.checked)
+                    }
                   >
                     {t('workflow.nodes.variableAggregationNode.enableFallback')}
                   </Checkbox>

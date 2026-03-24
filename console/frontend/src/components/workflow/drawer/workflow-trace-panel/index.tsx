@@ -890,7 +890,10 @@ function WorkflowTracePanel(): React.ReactElement {
                       {flattenedNodes.map(node => {
                         const nodeStart = node.offset;
                         const nodeEnd = node.offset + node.duration;
-                        const visibleStart = Math.max(nodeStart, viewport.start);
+                        const visibleStart = Math.max(
+                          nodeStart,
+                          viewport.start
+                        );
                         const visibleEnd = Math.min(nodeEnd, viewport.end);
 
                         if (
@@ -906,16 +909,16 @@ function WorkflowTracePanel(): React.ReactElement {
                                 viewport.duration) *
                               100
                             : 0;
-                      const width =
-                        viewport.duration > 0
-                          ? Math.max(
-                              (((Math.max(visibleEnd - visibleStart, 0) || 0) /
-                                viewport.duration) *
-                                100 *
-                                FLAME_BAR_WIDTH_SCALE),
-                              node.duration === 0 ? 3 : 0.6
-                            )
-                          : 100;
+                        const width =
+                          viewport.duration > 0
+                            ? Math.max(
+                                ((Math.max(visibleEnd - visibleStart, 0) || 0) /
+                                  viewport.duration) *
+                                  100 *
+                                  FLAME_BAR_WIDTH_SCALE,
+                                node.duration === 0 ? 3 : 0.6
+                              )
+                            : 100;
 
                         return (
                           <div

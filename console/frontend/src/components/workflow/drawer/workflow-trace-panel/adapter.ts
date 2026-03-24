@@ -236,8 +236,14 @@ const buildIterationRunNode = (
     type: 'iteration-run',
     kind: 'iteration-run',
     status,
-    duration: Math.max((lastNode?.endTime || 0) - (firstNode?.startTime || 0), 0),
-    offset: Math.max((firstNode?.startTime || 0) - (execution.startTime || 0), 0),
+    duration: Math.max(
+      (lastNode?.endTime || 0) - (firstNode?.startTime || 0),
+      0
+    ),
+    offset: Math.max(
+      (firstNode?.startTime || 0) - (execution.startTime || 0),
+      0
+    ),
     totalTokens,
     promptTokens,
     completionTokens,
@@ -277,7 +283,11 @@ export const buildTraceTree = (
 
   const appendTraceNode = (node: WorkflowTraceNode, index: number): void => {
     tree.push(
-      createTraceNodeWithModelChild(detail.execution, node, `${node.id}::${index}`)
+      createTraceNodeWithModelChild(
+        detail.execution,
+        node,
+        `${node.id}::${index}`
+      )
     );
   };
 

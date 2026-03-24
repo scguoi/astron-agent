@@ -223,7 +223,11 @@ function validateFallbackValue(type: string, value: any): boolean {
       }
       try {
         const parsed = JSON.parse(value);
-        return Boolean(parsed) && !Array.isArray(parsed) && typeof parsed === 'object';
+        return (
+          Boolean(parsed) &&
+          !Array.isArray(parsed) &&
+          typeof parsed === 'object'
+        );
       } catch {
         return false;
       }
@@ -239,7 +243,9 @@ function validateFallbackValue(type: string, value: any): boolean {
   }
 }
 
-export function validateVariableAggregationNode(currentCheckNode: any): boolean {
+export function validateVariableAggregationNode(
+  currentCheckNode: any
+): boolean {
   if (currentCheckNode?.nodeType !== VARIABLE_AGGREGATION_NODE_TYPE) {
     return true;
   }
@@ -267,7 +273,9 @@ export function validateVariableAggregationNode(currentCheckNode: any): boolean 
     const isValidFallback = validateFallbackValue(outputType, fallbackValue);
     currentCheckNode.data.nodeParam.fallbackValueErrMsg = isValidFallback
       ? ''
-      : i18next.t('workflow.nodes.validation.variableAggregationFallbackInvalid');
+      : i18next.t(
+          'workflow.nodes.validation.variableAggregationFallbackInvalid'
+        );
     passFlag = isValidFallback && passFlag;
   } else {
     currentCheckNode.data.nodeParam.fallbackValueErrMsg = '';
