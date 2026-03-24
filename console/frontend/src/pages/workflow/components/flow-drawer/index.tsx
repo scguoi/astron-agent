@@ -5,6 +5,7 @@ import VersionManagement from '@/components/workflow/drawer/version-management';
 import NodeDetail from '@/components/workflow/drawer/node-detail';
 import ChatResult from '@/components/workflow/drawer/chat-result';
 import CodeIDEA from '@/components/workflow/drawer/code-idea';
+import WorkflowTracePanel from '@/components/workflow/drawer/workflow-trace-panel';
 import useFlowsManager from '@/components/workflow/store/use-flows-manager';
 
 function index(): React.ReactElement {
@@ -23,6 +24,7 @@ function index(): React.ReactElement {
     <>
       <NodeDetail />
       <ChatResult />
+      <WorkflowTracePanel />
       <DebuggerCheck
         open={openOperationResult}
         setOpen={setOpenOperationResult}

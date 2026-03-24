@@ -72,6 +72,7 @@ export const initialStatus = {
   iteratorId: '', //Iterator Node ID
   currentStore: undefined, //Current Store
   flowChatResultOpen: false, //Flow Last Session Input Output Modal
+  workflowTracePanelOpen: false, //Workflow Trace Panel
   edgeType: 'curve', //Edge Type
   loadingModels: false, //Load Model List
   canvasesDisabled: false, //Disable Canvas
