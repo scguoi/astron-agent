@@ -506,6 +506,7 @@ const translation = {
       comparativeDebugging: '对比调试',
       versionHistory: '历史版本',
       advancedConfiguration: '高级配置',
+      traceLogs: 'Trace日志',
       debug: '调试',
       publish: '发布',
       updatePublish: '更新发布',

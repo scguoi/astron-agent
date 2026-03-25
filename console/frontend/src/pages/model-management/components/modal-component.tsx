@@ -658,12 +658,12 @@ const ModelBasicForm = ({
               : currentProvider === ModelProviderType.DOUBAO
                 ? t('model.providerHintDoubao')
                 : currentProvider === ModelProviderType.DEEPSEEK
-      ? t('model.providerHintDeepSeek')
-      : currentProvider === ModelProviderType.ANTHROPIC
-        ? t('model.providerHintAnthropic')
-        : currentProvider === ModelProviderType.GOOGLE
-          ? t('model.providerHintGoogle')
-          : t('model.providerHintOpenAI');
+                  ? t('model.providerHintDeepSeek')
+                  : currentProvider === ModelProviderType.ANTHROPIC
+                    ? t('model.providerHintAnthropic')
+                    : currentProvider === ModelProviderType.GOOGLE
+                      ? t('model.providerHintGoogle')
+                      : t('model.providerHintOpenAI');
   const modelPlaceholder =
     currentProvider === ModelProviderType.MINIMAX
       ? t('model.minimaxModelPlaceholder')
@@ -678,12 +678,12 @@ const ModelBasicForm = ({
               : currentProvider === ModelProviderType.DOUBAO
                 ? t('model.doubaoModelPlaceholder')
                 : currentProvider === ModelProviderType.DEEPSEEK
-      ? t('model.deepseekModelPlaceholder')
-      : currentProvider === ModelProviderType.ANTHROPIC
-        ? t('model.anthropicModelPlaceholder')
-        : currentProvider === ModelProviderType.GOOGLE
-          ? t('model.googleModelPlaceholder')
-          : t('model.enterModelFieldValue');
+                  ? t('model.deepseekModelPlaceholder')
+                  : currentProvider === ModelProviderType.ANTHROPIC
+                    ? t('model.anthropicModelPlaceholder')
+                    : currentProvider === ModelProviderType.GOOGLE
+                      ? t('model.googleModelPlaceholder')
+                      : t('model.enterModelFieldValue');
   const endpointPlaceholder =
     currentProvider === ModelProviderType.MINIMAX
       ? t('model.minimaxEndpointPlaceholder')
@@ -698,12 +698,12 @@ const ModelBasicForm = ({
               : currentProvider === ModelProviderType.DOUBAO
                 ? t('model.doubaoEndpointPlaceholder')
                 : currentProvider === ModelProviderType.DEEPSEEK
-      ? t('model.deepseekEndpointPlaceholder')
-      : currentProvider === ModelProviderType.ANTHROPIC
-        ? t('model.anthropicEndpointPlaceholder')
-        : currentProvider === ModelProviderType.GOOGLE
-          ? t('model.googleEndpointPlaceholder')
-          : t('model.interfaceAddressPlaceholder');
+                  ? t('model.deepseekEndpointPlaceholder')
+                  : currentProvider === ModelProviderType.ANTHROPIC
+                    ? t('model.anthropicEndpointPlaceholder')
+                    : currentProvider === ModelProviderType.GOOGLE
+                      ? t('model.googleEndpointPlaceholder')
+                      : t('model.interfaceAddressPlaceholder');
   return (
     <>
       {modelCreateType === ModelCreateType.THIRD_PARTY && (
@@ -895,9 +895,13 @@ const ModelBasicForm = ({
         <div className="flex items-center gap-3">
           <Switch
             checked={modelInfo?.isThink}
-            onChange={checked => setModelInfo({ ...modelInfo, isThink: checked })}
+            onChange={checked =>
+              setModelInfo({ ...modelInfo, isThink: checked })
+            }
           />
-          <span className="text-xs text-gray-500">{t('model.enableThinkingCapability')}</span>
+          <span className="text-xs text-gray-500">
+            {t('model.enableThinkingCapability')}
+          </span>
         </div>
       </div>
     </>
@@ -1519,7 +1523,8 @@ const useCreateModal = (
     if (!modelId) {
       formState.setModelInfo({
         ...formState.modelInfo,
-        interfaceAddress: initialEndpoint || formState.modelInfo.interfaceAddress,
+        interfaceAddress:
+          initialEndpoint || formState.modelInfo.interfaceAddress,
         provider: normalizeModelProvider(initialProvider),
         isThink: formState.modelInfo.isThink ?? false,
       });
@@ -1618,7 +1623,9 @@ export function CreateModal({
   );
   const { t } = useTranslation();
   const isEditMode = !!modelId;
-  const currentProvider = normalizeModelProvider(modalState.modelInfo?.provider);
+  const currentProvider = normalizeModelProvider(
+    modalState.modelInfo?.provider
+  );
   const modalTitle =
     modalState.modelCreateType === ModelCreateType.THIRD_PARTY
       ? t('model.addProviderModel', {

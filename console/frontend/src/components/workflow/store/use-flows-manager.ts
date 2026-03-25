@@ -162,6 +162,8 @@ const useFlowsManagerStore = create<FlowsManagerStoreType>((set, get) => ({
   setEdgeType: (edgeType: string): void => set({ edgeType }),
   setFlowChatResultOpen: (flowChatResultOpen: boolean): void =>
     set({ flowChatResultOpen }),
+  setWorkflowTracePanelOpen: (workflowTracePanelOpen: boolean): void =>
+    set({ workflowTracePanelOpen }),
   getFlowDetail: (): void => getFlowDetail(get),
   initFlowData: (id): Promise<void> => initFlowData(id, set),
   autoSaveCurrentFlow: (): void => autoSaveCurrentFlow(get),

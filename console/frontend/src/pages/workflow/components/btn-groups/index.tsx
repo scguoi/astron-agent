@@ -167,6 +167,9 @@ const PublishHeader: React.FC<PublishHeaderProps> = ({
   const setOpenOperationResult = useFlowsManager(
     (state: unknown) => state.setOpenOperationResult
   );
+  const setWorkflowTracePanelOpen = useFlowsManager(
+    (state: unknown) => state.setWorkflowTracePanelOpen
+  );
   const historyVersion: boolean = useFlowsManager(
     (state: unknown) => state.historyVersion
   );
@@ -269,6 +272,15 @@ const PublishHeader: React.FC<PublishHeaderProps> = ({
       {!historyVersion && <div className="w-[1px] h-[24px] bg-[#E4EAFF]" />}
 
       <div className="flex items-center gap-[14px]">
+        {!historyVersion && (
+          <div
+            className="border border-[#E4EAFF] px-4 flex items-center gap-2 h-9 rounded-lg cursor-pointer"
+            onClick={() => setWorkflowTracePanelOpen(true)}
+          >
+            {t('workflow.nodes.header.traceLogs')}
+          </div>
+        )}
+
         {!historyVersion && (
           <div
             className="border border-[#E4EAFF] px-4 flex items-center gap-2 h-9 rounded-lg cursor-pointer"

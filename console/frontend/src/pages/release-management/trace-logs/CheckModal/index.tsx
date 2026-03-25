@@ -18,6 +18,7 @@ import styles from './index.module.scss';
 interface OcrNodeData {
   key?: React.Key; // 添加 key 属性以匹配树形结构的 key 字段
   next_log_ids?: string[];
+  children?: OcrNodeData[];
   data?: {
     output?: any; // 输出
     input?: {
@@ -49,6 +50,8 @@ interface OcrNodeData {
   func_name?: string;
   node_id?: string;
   node_type?: string; // 节点类型
+  selectable?: boolean;
+  isVirtual?: boolean;
 }
 
 interface OcrModalProps {
@@ -69,17 +72,59 @@ const OcrModal: React.FC<OcrModalProps> = ({ visible, onCancel, record }) => {
   const [selectedNode, setSelectedNode] = useState<OcrNodeData | null>(null);
   const [treeData, setTreeData] = useState<OcrNodeData[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [traceId, setTraceId] = useState<string | null>(null);
   const { t } = useTranslation();
+
+  const findFirstSelectableNode = useCallback(
+    (nodes: OcrNodeData[]): OcrNodeData | null => {
+      for (const node of nodes) {
+        if (node.selectable !== false) {
+          return node;
+        }
+
+        if (node.children?.length) {
+          const childNode = findFirstSelectableNode(node.children);
+          if (childNode) {
+            return childNode;
+          }
+        }
+      }
+
+      return null;
+    },
+    []
+  );
+
+  const collectExpandedKeys = useCallback(
+    (nodes: OcrNodeData[]): React.Key[] => {
+      const keys: React.Key[] = [];
+
+      const visit = (nodeList: OcrNodeData[]) => {
+        nodeList.forEach(node => {
+          if (node.children?.length) {
+            if (node.node_type !== 'iteration-option') {
+              keys.push(node[KEY] || '');
+              visit(node.children);
+            }
+          }
+        });
+      };
+
+      visit(nodes);
+      return keys.filter(Boolean);
+    },
+    []
+  );
 
   // 模拟树形数据
   useEffect(() => {
     if (visible) {
       const traceData = record?.trace || [];
-      console.log(record, 'record');
       setTreeData(traceData);
+      setExpandedKeys(collectExpandedKeys(traceData));
 
-      const initialNode = traceData[0];
+      const initialNode = findFirstSelectableNode(traceData);
       if (initialNode) {
         setSelectedNode(initialNode);
         setSelectedKeys([initialNode[KEY]]);
@@ -87,13 +132,17 @@ const OcrModal: React.FC<OcrModalProps> = ({ visible, onCancel, record }) => {
       } else {
         setSelectedNode(null);
         setSelectedKeys([]);
+        setTraceId(null);
       }
     }
-  }, [visible]);
+  }, [visible, record, collectExpandedKeys, findFirstSelectableNode]);
 
   // 处理树节点选择事件
   const onSelect = (selectedKeys: React.Key[], info: any) => {
     const node = info.node;
+    if (node?.selectable === false) {
+      return;
+    }
     setSelectedNode(node);
     setSelectedKeys(selectedKeys);
     setTraceId(node.id);
@@ -243,9 +292,10 @@ const OcrModal: React.FC<OcrModalProps> = ({ visible, onCancel, record }) => {
               showLine={{ showLeafIcon: false }}
               switcherIcon={<DownOutlined />}
               onSelect={onSelect}
+              onExpand={keys => setExpandedKeys(keys)}
+              expandedKeys={expandedKeys}
               selectedKeys={selectedKeys}
               treeData={treeData as any}
-              defaultExpandAll={true}
               titleRender={(node: any) => titleRender(node as OcrNodeData)}
             />
           </div>

@@ -116,6 +116,8 @@ export type FlowsManagerStoreType = {
   setUpdateNodeInputData: (updateNodeInputData: unknown) => void;
   flowChatResultOpen: boolean;
   setFlowChatResultOpen: (flowChatResultOpen: boolean) => void;
+  workflowTracePanelOpen: boolean;
+  setWorkflowTracePanelOpen: (workflowTracePanelOpen: boolean) => void;
   flowResult: { status: string; timeCost: string; totalTokens: string };
   setFlowResult: (flowResult: {
     status: string;

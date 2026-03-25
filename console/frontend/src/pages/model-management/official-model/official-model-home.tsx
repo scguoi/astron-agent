@@ -120,7 +120,8 @@ const OfficialModelContent: React.FC = () => {
         subtitle: 'Qwen-Max / Qwen-Plus',
         description: t('model.providerCardQwenDesc'),
         accentClass: 'from-[#F3F6FF] via-[#FAFBFF] to-white',
-        endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+        endpoint:
+          'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
       },
       {
         provider: ModelProviderType.MOONSHOT,

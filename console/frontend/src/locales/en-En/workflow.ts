@@ -522,6 +522,7 @@ const translation = {
       comparativeDebugging: 'Comparative Debugging',
       versionHistory: 'Version History',
       advancedConfiguration: 'Advanced Configuration',
+      traceLogs: 'Trace Logs',
       debug: 'Debug',
       publish: 'Publish',
       updatePublish: 'Update & Publish',

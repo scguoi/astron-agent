@@ -200,8 +200,7 @@ const translation = {
     '接入 MiniMax 官方模型，适合高性价比对话、文案生成与轻助手工作流。',
   providerCardZhipuDesc:
     '接入 GLM 系列模型，适合中文能力、Agent 规划与通用生成任务。',
-  providerCardQwenDesc:
-    '接入千问系列模型，适合中英文生成、推理与代码任务。',
+  providerCardQwenDesc: '接入千问系列模型，适合中英文生成、推理与代码任务。',
   providerCardMoonshotDesc:
     '接入月之暗面官方模型，适合长上下文对话、文档理解与知识问答。',
   providerCardDoubaoDesc:
